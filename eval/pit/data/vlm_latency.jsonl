@@ -1,0 +1,100 @@
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_00.png", "px": 9.9, "fog": 1.0, "in_window": 1, "latency_s": 0.6037, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_01.png", "px": 9.0, "fog": 0.0, "in_window": 1, "latency_s": 11.3408, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_02.png", "px": 8.75, "fog": 1.0, "in_window": 0, "latency_s": 11.8289, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_03.png", "px": 8.75, "fog": 0.0, "in_window": 0, "latency_s": 11.2369, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_04.png", "px": 9.9, "fog": 0.0, "in_window": 1, "latency_s": 10.9411, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_05.png", "px": 8.25, "fog": 1.0, "in_window": 0, "latency_s": 11.099, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_06.png", "px": 9.0, "fog": 1.0, "in_window": 1, "latency_s": 11.6296, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_07.png", "px": 9.75, "fog": 1.0, "in_window": 1, "latency_s": 11.5957, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_08.png", "px": 9.25, "fog": 0.0, "in_window": 1, "latency_s": 11.8109, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_09.png", "px": 7.75, "fog": 1.0, "in_window": 0, "latency_s": 12.2557, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_10.png", "px": 9.5, "fog": 1.0, "in_window": 1, "latency_s": 13.8828, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_11.png", "px": 6.0, "fog": 1.0, "in_window": 0, "latency_s": 20.0235, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_12.png", "px": 7.0, "fog": 0.0, "in_window": 0, "latency_s": 20.6502, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_13.png", "px": 7.0, "fog": 1.0, "in_window": 0, "latency_s": 17.1161, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_14.png", "px": 7.75, "fog": 0.0, "in_window": 0, "latency_s": 15.5898, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_15.png", "px": 9.25, "fog": 1.0, "in_window": 1, "latency_s": 13.093, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_16.png", "px": 9.5, "fog": 0.0, "in_window": 1, "latency_s": 14.2575, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_17.png", "px": 9.75, "fog": 0.0, "in_window": 1, "latency_s": 13.2964, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_18.png", "px": 6.0, "fog": 0.0, "in_window": 0, "latency_s": 12.6158, "decision": "JUMP", "jump": 1}
+{"model": "llama3.2-vision:11b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_19.png", "px": 8.25, "fog": 0.0, "in_window": 0, "latency_s": 12.0375, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_00.png", "px": 9.9, "fog": 1.0, "in_window": 1, "latency_s": 0.3866, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_01.png", "px": 9.0, "fog": 0.0, "in_window": 1, "latency_s": 8.0577, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_02.png", "px": 8.75, "fog": 1.0, "in_window": 0, "latency_s": 7.9808, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_03.png", "px": 8.75, "fog": 0.0, "in_window": 0, "latency_s": 7.9958, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_04.png", "px": 9.9, "fog": 0.0, "in_window": 1, "latency_s": 8.7379, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_05.png", "px": 8.25, "fog": 1.0, "in_window": 0, "latency_s": 8.2293, "decision": "WAIT", "jump": 0}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_06.png", "px": 9.0, "fog": 1.0, "in_window": 1, "latency_s": 6.9019, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_07.png", "px": 9.75, "fog": 1.0, "in_window": 1, "latency_s": 7.5215, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_08.png", "px": 9.25, "fog": 0.0, "in_window": 1, "latency_s": 7.0777, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_09.png", "px": 7.75, "fog": 1.0, "in_window": 0, "latency_s": 7.6149, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_10.png", "px": 9.5, "fog": 1.0, "in_window": 1, "latency_s": 8.9887, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_11.png", "px": 6.0, "fog": 1.0, "in_window": 0, "latency_s": 7.8586, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_12.png", "px": 7.0, "fog": 0.0, "in_window": 0, "latency_s": 7.8337, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_13.png", "px": 7.0, "fog": 1.0, "in_window": 0, "latency_s": 7.3248, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_14.png", "px": 7.75, "fog": 0.0, "in_window": 0, "latency_s": 8.2487, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_15.png", "px": 9.25, "fog": 1.0, "in_window": 1, "latency_s": 7.3417, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_16.png", "px": 9.5, "fog": 0.0, "in_window": 1, "latency_s": 8.2952, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_17.png", "px": 9.75, "fog": 0.0, "in_window": 1, "latency_s": 7.2546, "decision": "JUMP", "jump": 1}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_18.png", "px": 6.0, "fog": 0.0, "in_window": 0, "latency_s": 8.2352, "decision": "WAIT", "jump": 0}
+{"model": "qwen2.5-vl-7b (local, Ollama)", "hardware": "Apple Silicon (this machine)", "frame": "frame_19.png", "px": 8.25, "fog": 0.0, "in_window": 0, "latency_s": 7.1316, "decision": "JUMP", "jump": 1}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_00.png", "px": 9.9, "fog": 1.0, "in_window": 1, "latency_s": 1.3061, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_01.png", "px": 9.0, "fog": 0.0, "in_window": 1, "latency_s": 0.958, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_02.png", "px": 8.75, "fog": 1.0, "in_window": 0, "latency_s": 0.7154, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_03.png", "px": 8.75, "fog": 0.0, "in_window": 0, "latency_s": 0.6799, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_04.png", "px": 9.9, "fog": 0.0, "in_window": 1, "latency_s": 0.853, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_05.png", "px": 8.25, "fog": 1.0, "in_window": 0, "latency_s": 0.9466, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_06.png", "px": 9.0, "fog": 1.0, "in_window": 1, "latency_s": 0.5261, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_07.png", "px": 9.75, "fog": 1.0, "in_window": 1, "latency_s": 0.6055, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_08.png", "px": 9.25, "fog": 0.0, "in_window": 1, "latency_s": 0.6777, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_09.png", "px": 7.75, "fog": 1.0, "in_window": 0, "latency_s": 1.0191, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_10.png", "px": 9.5, "fog": 1.0, "in_window": 1, "latency_s": 0.56, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_11.png", "px": 6.0, "fog": 1.0, "in_window": 0, "latency_s": 0.947, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_12.png", "px": 7.0, "fog": 0.0, "in_window": 0, "latency_s": 1.0567, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_13.png", "px": 7.0, "fog": 1.0, "in_window": 0, "latency_s": 1.0084, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_14.png", "px": 7.75, "fog": 0.0, "in_window": 0, "latency_s": 1.6987, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_15.png", "px": 9.25, "fog": 1.0, "in_window": 1, "latency_s": 1.4844, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_16.png", "px": 9.5, "fog": 0.0, "in_window": 1, "latency_s": 0.9785, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_17.png", "px": 9.75, "fog": 0.0, "in_window": 1, "latency_s": 0.6475, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_18.png", "px": 6.0, "fog": 0.0, "in_window": 0, "latency_s": 1.094, "decision": "WAIT", "jump": 0}
+{"model": "claude-haiku-4-5 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_19.png", "px": 8.25, "fog": 0.0, "in_window": 0, "latency_s": 1.0486, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_00.png", "px": 9.9, "fog": 1.0, "in_window": 1, "latency_s": 2.2063, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_01.png", "px": 9.0, "fog": 0.0, "in_window": 1, "latency_s": 1.1476, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_02.png", "px": 8.75, "fog": 1.0, "in_window": 0, "latency_s": 1.3612, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_03.png", "px": 8.75, "fog": 0.0, "in_window": 0, "latency_s": 1.2524, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_04.png", "px": 9.9, "fog": 0.0, "in_window": 1, "latency_s": 1.4841, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_05.png", "px": 8.25, "fog": 1.0, "in_window": 0, "latency_s": 1.1758, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_06.png", "px": 9.0, "fog": 1.0, "in_window": 1, "latency_s": 1.4334, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_07.png", "px": 9.75, "fog": 1.0, "in_window": 1, "latency_s": 1.4635, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_08.png", "px": 9.25, "fog": 0.0, "in_window": 1, "latency_s": 1.5671, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_09.png", "px": 7.75, "fog": 1.0, "in_window": 0, "latency_s": 1.2194, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_10.png", "px": 9.5, "fog": 1.0, "in_window": 1, "latency_s": 1.1445, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_11.png", "px": 6.0, "fog": 1.0, "in_window": 0, "latency_s": 2.8477, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_12.png", "px": 7.0, "fog": 0.0, "in_window": 0, "latency_s": 5.7644, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_13.png", "px": 7.0, "fog": 1.0, "in_window": 0, "latency_s": 1.5586, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_14.png", "px": 7.75, "fog": 0.0, "in_window": 0, "latency_s": 1.64, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_15.png", "px": 9.25, "fog": 1.0, "in_window": 1, "latency_s": 1.498, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_16.png", "px": 9.5, "fog": 0.0, "in_window": 1, "latency_s": 1.278, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_17.png", "px": 9.75, "fog": 0.0, "in_window": 1, "latency_s": 1.5163, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_18.png", "px": 6.0, "fog": 0.0, "in_window": 0, "latency_s": 1.1447, "decision": "WAIT", "jump": 0}
+{"model": "claude-sonnet-4-6 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_19.png", "px": 8.25, "fog": 0.0, "in_window": 0, "latency_s": 1.2033, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_00.png", "px": 9.9, "fog": 1.0, "in_window": 1, "latency_s": 1.5815, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_01.png", "px": 9.0, "fog": 0.0, "in_window": 1, "latency_s": 1.6102, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_02.png", "px": 8.75, "fog": 1.0, "in_window": 0, "latency_s": 1.3604, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_03.png", "px": 8.75, "fog": 0.0, "in_window": 0, "latency_s": 1.5615, "decision": "JUMP", "jump": 1}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_04.png", "px": 9.9, "fog": 0.0, "in_window": 1, "latency_s": 1.6816, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_05.png", "px": 8.25, "fog": 1.0, "in_window": 0, "latency_s": 1.7836, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_06.png", "px": 9.0, "fog": 1.0, "in_window": 1, "latency_s": 3.4358, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_07.png", "px": 9.75, "fog": 1.0, "in_window": 1, "latency_s": 2.3585, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_08.png", "px": 9.25, "fog": 0.0, "in_window": 1, "latency_s": 1.4914, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_09.png", "px": 7.75, "fog": 1.0, "in_window": 0, "latency_s": 1.3699, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_10.png", "px": 9.5, "fog": 1.0, "in_window": 1, "latency_s": 1.3402, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_11.png", "px": 6.0, "fog": 1.0, "in_window": 0, "latency_s": 1.217, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_12.png", "px": 7.0, "fog": 0.0, "in_window": 0, "latency_s": 1.1254, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_13.png", "px": 7.0, "fog": 1.0, "in_window": 0, "latency_s": 1.805, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_14.png", "px": 7.75, "fog": 0.0, "in_window": 0, "latency_s": 1.4695, "decision": "JUMP", "jump": 1}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_15.png", "px": 9.25, "fog": 1.0, "in_window": 1, "latency_s": 1.2893, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_16.png", "px": 9.5, "fog": 0.0, "in_window": 1, "latency_s": 1.3719, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_17.png", "px": 9.75, "fog": 0.0, "in_window": 1, "latency_s": 2.2498, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_18.png", "px": 6.0, "fog": 0.0, "in_window": 0, "latency_s": 1.3298, "decision": "WAIT", "jump": 0}
+{"model": "claude-opus-4-8 (Anthropic API)", "hardware": "Anthropic API", "frame": "frame_19.png", "px": 8.25, "fog": 0.0, "in_window": 0, "latency_s": 1.567, "decision": "WAIT", "jump": 0}

@@ -1,0 +1,1 @@
+{"policy": "agent", "seed": 1, "pit_near": 10.0, "pit_width": 2, "speed": 0.07, "fog": 0.0, "delay": 0, "repeat": 1, "cleared": 0, "fell": 1, "decision_tick": 0, "decision_x": 2.57, "in_window": 0, "w_lo": 8.921, "w_hi": 9.999, "ticks": 108, "model": "llama3.2-vision:11b", "backend": "ollama", "L_mean_s": 7.5888}
