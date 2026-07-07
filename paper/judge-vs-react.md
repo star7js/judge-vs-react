@@ -1,8 +1,8 @@
 # Judge vs. React: dissociating perception from timing in VLM reflex control
 
-> **Draft scaffold (arXiv target).** Real numbers from the oracle apparatus are
-> filled in; results that require VLM runs (need an API key) are marked
-> `<<fill from VLM runs>>`. Figures live in `../eval/pit/figures/`.
+> Readable prose draft. The canonical, clean version is `judge-vs-react.tex` /
+> `judge-vs-react.pdf` (the arXiv target); this file tracks it in Markdown.
+> Figures live in `../eval/pit/figures/`.
 
 ## Abstract
 
@@ -35,11 +35,24 @@ benchmarked in.
 
 ## 1. Introduction
 
-`<<intro: the two-axis failure; why one-decision isolation is the move; the
-pit-jump task as apparatus; the results S2/S1/S3, then generality via S4.>>`
+When a vision-language model plays a real-time game and walks into a pit, the
+post-mortem is ambiguous. Did it fail to *see* that a jump was needed
+(perception), or did it see correctly and *act too late* (timing)? Aggregate
+game benchmarks — score, win rate, levels cleared — fold these two failures into
+one number, so "the VLM is bad at this game" can mean either, and usually means
+some unknown mix. The two have opposite fixes: a perception failure wants a
+better model; a timing failure wants a slower clock. Conflating them is why
+"VLMs are too slow to play games" is repeated as though it were a single fact.
 
-Lead with the single-decision flip (S2) — the specific, novel version of
-"pause-vs-real-time." Contributions:
+Our move is isolation. We reduce an episode to *one* correct decision — a
+first-person pit the player auto-walks toward, where the only choice is *when* to
+jump — so that on any given run exactly one of the two failures can occur, and we
+can say which. The apparatus is deterministic and headless, and it injects a
+control delay `D` (a decision made at tick `t` is applied at `t+D`), which lets
+us vary *lateness* completely independently of *judgment quality*: a
+perfect-judgment oracle still fails if its action lands too late.
+
+That isolation yields five results, presented most striking first:
 - **S2 (dissociation):** the same correct decision succeeds paused, fails
   real-time, isolating latency from perception on ONE decision.
 - **S1 (timing law):** a sharp threshold in `r = latency/window` near 1,
@@ -160,9 +173,9 @@ Restricting to oracle-correct decisions (`in_window = 1`), the **identical**
 decision clears with probability **1.00 at `D = 0`** and **0.11 once `D` exceeds
 the window** (`r > 1`). The decision is the same (same `decision_x`, delay-
 independent); only execution timing changed. This isolates latency from
-perception directly. `<<report as unique configs, not raw rows: the oracle emits
+perception directly. (These are unique configs, not raw rows: the oracle emits
 60× fog/seed duplicates; the "late" condition is 9 unique configs, 1 of which
-still clears → 0.11.>>`
+still clears, giving 0.11.)
 
 ### 4.3 Action-repeat does not rescue (S3) — Fig. `fig_repeat.png`
 Holding a decision across `k` frames does not rescue the timing failure — and in
@@ -171,7 +184,7 @@ fact modestly **worsens** it. Measured `r*` vs. `k` (fixed pit width): `k=1 →
 decision lands staler (up to `k-1` ticks later than ideal), so the transition
 moves to *lower* `r` (fails earlier), not higher. Action-repeat is a
 compute/cost lever, not a latency fix. (This sweep is at a single pit width;
-`<<extend across pit widths to confirm the direction is general.>>`)
+extending it across widths to confirm the direction is general is future work.)
 
 ### 4.4 Perception axis (dissociation) — Fig. `fig_perception.png`
 A capable vision model *can* judge the jump from a single frame, and fog
@@ -211,11 +224,11 @@ carries the claim.
 This is the perception half of the dissociation: a model that judges well with a
 clear depth cue drops to chance when fog obscures the pit's distance — **at zero
 delay**, i.e. independent of the timing axis (§4.1). Together, perception (§4.4)
-and timing (§4.1/§4.2) are separable failure axes on one task. (`<<caveat: the
-Claude judges run via the Claude Code subagent path, not a controlled API
-benchmark; the local VLM is a real keyless run. Judges are blinded to
-coordinates/labels but not to the task. Latency for the local VLMs is on the
-§4.1 axis: Qwen median 7.9s → r≈30, llama3.2-vision 12.1s → r≈47.>>`)
+and timing (§4.1/§4.2) are separable failure axes on one task. (Caveat: the
+Claude judges run via a subagent path, not a controlled API benchmark; the local
+VLM is a real keyless run. Judges are blinded to coordinates and labels but not
+to the task; the local VLMs' latencies place them on the timing axis at r≈31
+(Qwen) and r≈47 (llama3.2-vision).)
 
 The oracle-only `fig_dissociation.png` remains a placeholder for the timing⟂fog
 VLM version.

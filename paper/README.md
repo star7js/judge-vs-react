@@ -6,7 +6,7 @@ Dissociating perception from timing in VLM reflex control.
 |---|---|
 | `judge-vs-react.pdf` | The arXiv-ready preprint (built artifact, committed for sharing). |
 | `judge-vs-react.tex` | LaTeX source. |
-| `judge-vs-react.md` | The working markdown draft (still has a few scaffold notes; the `.tex`/`.pdf` are the clean version). |
+| `judge-vs-react.md` | Readable Markdown version of the paper (prose tracks the `.tex`; the `.tex`/`.pdf` are the canonical arXiv artifact). |
 | `blog.md` | The accessible blog writeup with the hero demo clip. |
 
 ## Build the PDF
