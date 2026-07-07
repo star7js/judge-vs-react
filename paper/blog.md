@@ -125,9 +125,9 @@ Below the boundary it clears **32/32**. Above it, **0/26**. The fit lands at
 **r\* = 1.05** — the oracle's cliff, felt by a real model. (Two honest
 footnotes: it needed a rewritten prompt to judge close-range frames at all — up
 close the pit stops looking like a "band" and becomes the whole bottom of the
-screen — and a rule that it must say JUMP on two consecutive frames, because a
-rare ~2%-per-frame hallucinated JUMP will fire almost surely *somewhere* over
-90 frames of approach.)
+screen — and a rule that it must say JUMP on two consecutive frames, because even a
+rare hallucinated JUMP — a percent or two per frame in our early prompt tests —
+fires almost surely *somewhere* over 90 frames of approach.)
 
 The best part is what happens past the cliff. Nine episodes misjudged and
 committed early — a perception error, and at small delays they all die, landing

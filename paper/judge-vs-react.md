@@ -261,12 +261,14 @@ close-range view — inside the window the pit is a black region filling the
 bottom of the frame, and the visible checkered floor is the pit's *far* side.
 The S5 judge instead answers a literal perceptual question ("what touches the
 bottom border of the image: tiles or black?") at high reasoning effort, with a
-commit rule of two consecutive JUMP answers. The commit rule matters: the
-model's rare stochastic false JUMPs (~2% per call far from the pit) would
-otherwise fire almost surely somewhere over the ~90 consulted approach frames —
-a first-passage failure mode that single-frame accuracy batteries cannot see. We
-validated the judge on all 108 approach frames × 3 samples: zero far-field
-JUMPs, unanimous JUMP inside the window. The bottom-edge cue is nearly ideal in
+commit rule of two consecutive JUMP answers. The commit rule matters: in
+prompt-development batteries we measured isolated false JUMPs at the 1–2%
+per-call level far from the pit, and any such rate fires almost surely
+somewhere over the ~90 consulted approach frames — a first-passage failure mode
+that single-frame accuracy batteries cannot see. We validated the final judge
+on all 108 approach frames × 3 samples: zero far-field JUMPs, unanimous JUMP
+inside the window, and isolated misfires only in the last half-tile before the
+window (`x = 8.10–8.24`) — the source of the 9/72 early commits below. The bottom-edge cue is nearly ideal in
 this renderer: the pit's black region first touches the frame's bottom edge at
 `x = 9.01`, one tick after the window opens (`w_lo = 8.92`).
 
@@ -276,8 +278,9 @@ same logistic fit as S1 gives `r* = 1.05`, inside the oracle's bracketing gap
 `[1.04, 1.30]` and at its last-clear edge (the same-tick takeoff tolerance of
 S1). The transition is nearly as sharp as the oracle's, for an unplanned reason:
 the model's commit position is almost deterministic — 51/72 episodes commit at
-`x = 8.94` and 12 at `x = 9.01`, the first one or two ticks the bottom-edge cue
-exists. The anticipated noisy psychometric curve compresses to a near-step; this
+`x = 8.94` and 12 at `x = 9.01`, straddling the cue's pixel-level onset (the
+model begins answering "black" one tick before the black region literally
+reaches the bottom edge at `x = 9.01`). The anticipated noisy psychometric curve compresses to a near-step; this
 judge's decision-position variance is sub-tick, so the model behaves as a
 *slightly-early oracle* rather than a noisy one.
 
