@@ -39,10 +39,15 @@ decision clears the pit when the world is paused and fails in real time; (ii) a
 the dimensionless ratio $r = \text{latency} / \text{action-window}$, located
 near $r \approx 1$ (logistic fit $\rstar = 1.17$ on the oracle apparatus), with
 latency varied \emph{independently of judgment quality}; (iii)
-\textbf{action-repeat does not rescue it}; and (iv) the boundary is a
+\textbf{action-repeat does not rescue it}; (iv) the boundary is a
 \textbf{law, not a quirk of one task} --- a second reflex task in a different
 modality (rotational aiming) collapses onto the same $r \approx 1$ transition
-($\rstar = 0.98$). Measuring five real vision models on the task, \textbf{all
+($\rstar = 0.98$); and (v) a \textbf{real model traces the same boundary} --- a
+closed-loop Sonnet agent, swept through the transition by injected delay with
+its own frame-by-frame judgment in the loop, collapses at $\rstar = 1.05$, and
+past the boundary the \emph{only} surviving episodes are ones that misjudged
+early, their perception error cancelled by the delay. Measuring five real
+vision models on the task, \textbf{all
 land past $\rstar$} --- hosted frontier models at $r \approx 4$--$6$, local open
 VLMs at $r \approx 31$--$47$ --- so none can act inside the window in real time,
 yet the same decisions succeed when the world is paused. The framing implies
@@ -72,7 +77,7 @@ $t{+}D$), which lets us vary \emph{lateness} completely independently of
 \emph{judgment quality}: a perfect-judgment oracle still fails if its action
 lands too late.
 
-That isolation yields four results, presented most striking first:
+That isolation yields five results, presented most striking first:
 
 \begin{itemize}
   \item \textbf{S2 (dissociation):} the same correct decision succeeds when the
@@ -86,6 +91,11 @@ That isolation yields four results, presented most striking first:
   \item \textbf{S4 (generality):} a second reflex task in a different modality
     (rotational aiming) collapses onto the same $r \approx 1$ boundary
     ($\rstar = 0.98$) --- the law is not specific to the pit.
+  \item \textbf{S5 (a real model through the boundary):} a closed-loop Sonnet
+    agent, judging every frame itself, swept through the transition by
+    injected delay collapses at $\rstar = 1.05$ --- and past the boundary its
+    only clears are \emph{delay-rescued misjudgments}, the two failure axes
+    cancelling.
 \end{itemize}
 
 Separately, on the perception axis, a blind vision model \emph{can} judge the
@@ -356,6 +366,69 @@ than a fact about one pit.
   ($\rstar = 0.98$, 5 target widths).}
 \end{figure}
 
+\subsection{A real model through the boundary (S5)}
+
+S1 measures real models' latencies and finds them all far past $\rstar$
+($r \approx 4$--$47$); the transition itself is mapped by the oracle. Here we
+close that gap: a real model is swept \emph{through} the boundary with its own
+judgment in the loop. Because the apparatus decouples sim time from wall-clock,
+the model's (slow, variable) API latency is free, and $r$ is engineered
+exactly as in S1: Sonnet~4.6 judges \emph{every grounded frame} of a
+closed-loop blocking episode (pit width 2, $v = 0.07$, fog 0, seeds 1--6), its
+committed jump is applied $D$ ticks later, and sweeping
+$D \in \{0, \dots, 31\}$ sweeps $r = vD/W$ from $0$ to $2$, densely around
+$r = 1$ (72 episodes; 6{,}612 vision calls).
+
+\paragraph{Judge protocol.} The episode prompt used for the S1 latency battery
+turns out never to elicit JUMP near the window from \emph{any} hosted model:
+it describes the pit as ``the black band across the floor ahead,'' which stops
+matching the close-range view --- inside the window the pit is a black region
+filling the bottom of the frame, and the visible checkered floor is the pit's
+\emph{far} side. The S5 judge instead answers a literal perceptual question
+(``what touches the bottom border of the image: tiles or black?'') at high
+reasoning effort, with a commit rule of two consecutive JUMP answers. The
+commit rule matters: the model's rare stochastic false JUMPs
+($\sim$2\% per call far from the pit) would otherwise fire almost surely
+somewhere over the $\sim$90 consulted approach frames --- a first-passage
+failure mode that single-frame accuracy batteries cannot see. We validated the
+judge on all 108 approach frames $\times$ 3 samples: zero far-field JUMPs,
+unanimous JUMP inside the window. The bottom-edge cue is nearly ideal in this
+renderer: the pit's black region first touches the frame's bottom edge at
+$x = 9.01$, one tick after the window opens ($w_{lo} = 8.92$).
+
+\paragraph{The law holds.} Episodes whose decision lands in the window clear
+\textbf{32/32 through $r = 0.97$}, 4/5 at $r = 1.04$, and \textbf{0/26 from
+$r = 1.10$ on}; the same logistic fit as S1 gives $\rstar = 1.05$, inside the
+oracle's bracketing gap $[1.04, 1.30]$ and at its last-clear edge (the
+same-tick takeoff tolerance of S1). The transition is nearly as sharp as the
+oracle's, for an unplanned reason: the model's commit position is almost
+deterministic --- 51/72 episodes commit at $x = 8.94$ and 12 at $x = 9.01$,
+the first one or two ticks the bottom-edge cue exists. The anticipated noisy
+psychometric curve compresses to a near-step; this judge's decision-position
+variance is sub-tick, so the model behaves as a \emph{slightly-early oracle}
+rather than a noisy one.
+
+\paragraph{Delay-rescued misjudgments.} 9/72 episodes commit early
+($x = 8.10$--$8.24$, out of window --- a perception error; these are excluded
+from the timing fit above). At $D \le 8$ every such episode fails, landing
+short. In the band $D = 15$--$24$ ($r = 0.97$--$1.56$), \emph{every} early episode
+\textbf{clears} (5/5): the delay pushes the too-early takeoff into the window.
+Past $r \approx 1.1$ the \emph{only} surviving episodes are the misjudged
+ones; by $r = 2.01$ the delay overshoots even the early takeoff and the
+rescue band closes. The two failure axes do not merely
+dissociate --- on opposite sides of the boundary they \emph{compensate}, which
+is only visible because the apparatus labels each decision in- or
+out-of-window.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\linewidth]{fig_realmodel.png}
+  \caption{S5. Sonnet 4.6 swept through the boundary in closed loop
+  ($\rstar = 1.05$, in-window decisions). Crosses are out-of-window (early)
+  decisions: they fail below the boundary and are the only survivors past it
+  (delay-rescued perception errors).}
+\end{figure}
+
 \section{Discussion}
 
 The two failure axes have opposite fixes, and the framing makes the requirement
@@ -365,24 +438,34 @@ failure wants a slower clock: a model is viable exactly when
 $r = L / T_{\text{window}} < \rstar \approx 1$, so a deployment can cross the
 boundary by pausing the world ($r \to 0$), slowing it (raising
 $T_{\text{window}}$), or cutting latency --- and the measured field needs
-4--47$\times$ on the latter two. The practical reading is that pausable or
+4--47$\times$ on the latter two. S5 is the direct demonstration: the same
+model, same judgment, clears 32/32 below the boundary and 0/26 above it,
+with nothing varied but $r$. The practical reading is that pausable or
 turn-based deployment converts every slow-but-accurate model we measured from
 failing to viable, with no change to the model; conversely, a real-time
 benchmark score is a product of judgment \emph{and} time regime, and ``VLMs are
 too slow to play games'' is partly a fact about the clock they are handed.
+S5's delay-rescued misjudgments add a sharper corollary: past the boundary,
+scores can even \emph{reward} bad perception --- the axes compensate, and an
+aggregate benchmark cannot tell.
 
 \section{Limitations}
 
 \begin{itemize}
-  \item \textbf{The timing \emph{sweep} is oracle-only.} Determinism makes the
-    transition a sharp step, not a smooth psychometric curve; a stochastic
-    real-model sweep would give the noisy version. The \textbf{latency axis is
-    real}, though: five models are measured directly, all landing past $\rstar$
-    (hosted $r \approx 4$--$6$, local $r \approx 31$--$47$). Hosted latencies are
-    network- and load-dependent and local ones are hardware-specific, but each
-    is a real measured decision latency, not a stand-in. What is not yet done is
-    a real model swept \emph{through} the boundary (no model we measured lands
-    near $r = 1$; the oracle alone maps the transition itself).
+  \item \textbf{The real-model sweep (S5) is one model at one pit width}, and
+    its judge uses a revised prompt (the S1 battery prompt elicits no JUMPs
+    near the window from any hosted model) plus a two-consecutive-JUMP commit
+    rule --- a documented apparatus change, not the shipped default. Its $r$
+    axis is engineered by injected delay with the model's judgment in the
+    loop; the model's own wall-clock latency ($\sim$5\,s/call at high effort)
+    remains far past $\rstar$, so a wall-clock-real sweep is still impossible
+    for the measured field --- that is S1's point, not a gap. The
+    \textbf{latency axis is real}: five models measured directly, all past
+    $\rstar$ (hosted $r \approx 4$--$6$, local $r \approx 31$--$47$);
+    network-/hardware-dependent, but real decision latencies, not stand-ins.
+    The anticipated \emph{noisy} psychometric curve did not materialize ---
+    this judge's decision variance is sub-tick --- so mapping a genuinely
+    noisy transition needs a weaker or more stochastic judge.
   \item \textbf{The perception axis} mixes three Claude judges (run via a
     subagent path, not a controlled API benchmark) with one real keyless local
     VLM (\code{qwen2.5-vl:7b}), at $n = 10$ frames per condition --- large
@@ -404,11 +487,11 @@ too slow to play games'' is partly a fact about the clock they are handed.
 
 \section{Future work}
 
-A stochastic real-model sweep \emph{through} the boundary (engineering
-$r \approx 1$ by widening the window or slowing the world, to trace the noisy
-psychometric transition a real model produces); a multi-provider latency panel
-(Gemini/GPT + more open VLMs); a human psychophysics arm; and more reflex tasks
-(beyond the two here) to test how universal the $r \approx 1$ boundary is.
+Extending the S5 real-model sweep to more models and pit widths (and to a
+judge noisy enough to trace a genuinely smooth psychometric curve); a
+multi-provider latency panel (Gemini/GPT + more open VLMs); a human
+psychophysics arm; and more reflex tasks (beyond the two here) to test how
+universal the $r \approx 1$ boundary is.
 
 \section*{Reproducibility}
 
@@ -417,10 +500,12 @@ Code, data, and figure-generating scripts are at
 (analysis and sweeps) and \code{raycaster/} (the deterministic sim, including
 \code{--task aim} for the second task). The perception judgments
 (\code{perception\_judgments.jsonl}, 80 rows across 4 models), per-decision
-latencies (\code{vlm\_latency.jsonl}, 100 rows across 5 models), and the oracle
-and aim sweeps are committed. The local-VLM paths (Ollama) and the Claude
-subagent judges run without an API key; only the hosted-API latency numbers
-required one.
+latencies (\code{vlm\_latency.jsonl}, 100 rows across 5 models), the oracle
+and aim sweeps, and the S5 real-model sweep
+(\code{eval/pit/realmodel/}: driver, revised judge, 108-frame battery
+validation, and the 72-episode JSONL) are committed. The local-VLM paths
+(Ollama) and the Claude subagent judges run without an API key; the hosted-API
+latency numbers and the S5 sweep required one.
 
 \begin{thebibliography}{9}
   \bibitem{omnigamearena} M. Lin et al. \emph{OmniGameArena: A Unified UE5

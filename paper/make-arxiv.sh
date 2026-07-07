@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble the arXiv submission bundle: judge-vs-react.tex + the 6 figures it
+# Assemble the arXiv submission bundle: judge-vs-react.tex + the figures it
 # references, flattened into one directory (arXiv extracts to a single dir, so
 # the repo's ../eval/pit/figures/ paths won't resolve there). The .tex uses
 # \graphicspath to find figures/ (bundle) or ../eval/pit/figures/ (in-repo), so
@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-FIGS=(fig_timing fig_latency fig_flip fig_repeat fig_perception fig_aim)
+FIGS=(fig_timing fig_latency fig_flip fig_repeat fig_perception fig_aim fig_realmodel)
 
 rm -rf arxiv && mkdir -p arxiv/figures
 command cp judge-vs-react.tex arxiv/judge-vs-react.tex

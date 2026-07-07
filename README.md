@@ -24,6 +24,11 @@ The judgment never changed; only the clock did.
 - **Action-repeat doesn't rescue it** (modestly worsens it).
 - **Generality:** a second reflex task in a different modality (rotational
   aiming) lands on the same boundary (`r* = 0.98`).
+- **A real model traces the same boundary:** a closed-loop Sonnet agent,
+  judging every frame itself and swept through the transition by injected
+  delay, collapses at `r* = 1.05` — and past the boundary its only clears are
+  *delay-rescued misjudgments* (early jumps pushed into the window by the
+  delay), the two failure axes cancelling.
 - **Every real model measured is past the boundary:** the window is open
   ~257 ms; hosted frontier VLMs decide in ~1–1.5 s (`r ≈ 4–6`), local open
   VLMs in 8–12 s (`r ≈ 31–47`). Pausable/turn-based deployment converts the

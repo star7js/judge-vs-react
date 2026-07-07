@@ -124,3 +124,35 @@ def test_window_budget_257ms():
     assert widths == {1.078}
     t_ms = (1.078 / 0.07) * (1 / 60) * 1000
     assert round(t_ms) == 257
+
+
+def test_s5_realmodel_boundary_sweep():
+    # S5: Sonnet 4.6 swept through the boundary by injected delay, its own
+    # frame judgment in the loop. Paper: 72 episodes, in-window decisions
+    # clear 32/32 through r = 0.97, 4/5 at r = 1.04, 0/26 from r = 1.10 on;
+    # logistic r* = 1.05; 9 early (out-of-window) decisions of which 5 are
+    # delay-rescued; commit position 51x at x=8.94 and 12x at x=9.01.
+    rows = _rows(os.path.join("..", "realmodel", "sonnet_boundary_sweep.jsonl"))
+    assert len(rows) == 72
+    v, w = 0.07, 1.078
+    assert {round(window_width(r), 3) for r in rows} == {w}
+    r_of = lambda row: v * row["delay"] / w
+
+    inw = [r for r in rows if r["in_window"] == 1]
+    out = [r for r in rows if r["in_window"] == 0]
+    assert (len(inw), len(out)) == (63, 9)
+    assert sum(r["cleared"] for r in out) == 5  # delay-rescued misjudgments
+
+    below = [r for r in inw if r_of(r) <= 0.98]
+    edge = [r for r in inw if 1.0 < r_of(r) < 1.09]
+    above = [r for r in inw if r_of(r) >= 1.09]
+    assert (sum(r["cleared"] for r in below), len(below)) == (32, 32)
+    assert (sum(r["cleared"] for r in edge), len(edge)) == (4, 5)
+    assert (sum(r["cleared"] for r in above), len(above)) == (0, 26)
+
+    fit = transition_fit([r_of(r) for r in inw], [r["cleared"] for r in inw])
+    assert round(fit["r_star"], 2) == 1.05
+
+    commits = [round(r["decision_x"], 2) for r in rows]
+    assert commits.count(8.94) == 51
+    assert commits.count(9.01) == 12

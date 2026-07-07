@@ -111,6 +111,32 @@ Same collapse. Same boundary, at **r ≈ 1** again. When two tasks that share
 nothing but "act in a window" land on the same number, it stops being a quirk of
 the pit and starts being a *law* about timing.
 
+## Flying a real model through the boundary
+
+Everything above maps the boundary with a perfect-judgment oracle. Does a *real*
+model actually feel it? We put Sonnet in the loop for 72 full episodes: it looks
+at every frame of the approach, calls WAIT or JUMP from the image alone, and its
+committed jump is applied D ticks later. Sweeping D sweeps r straight through
+the boundary — with the model's own judgment, and its own mistakes, in the loop.
+
+![a real model through the boundary](../eval/pit/figures/fig_realmodel.png)
+
+Below the boundary it clears **32/32**. Above it, **0/26**. The fit lands at
+**r\* = 1.05** — the oracle's cliff, felt by a real model. (Two honest
+footnotes: it needed a rewritten prompt to judge close-range frames at all — up
+close the pit stops looking like a "band" and becomes the whole bottom of the
+screen — and a rule that it must say JUMP on two consecutive frames, because a
+rare ~2%-per-frame hallucinated JUMP will fire almost surely *somewhere* over
+90 frames of approach.)
+
+The best part is what happens past the cliff. Nine episodes misjudged and
+committed early — a perception error, and at small delays they all die, landing
+short. But in a middle band of delays, **every one of them cleared**: the delay
+pushed their too-early jump right into the window. Past the boundary, the only
+survivors are the episodes that judged *wrong*. The two failure axes don't just
+separate — on opposite sides of the line they cancel, and an aggregate score
+can't see it happening.
+
 ## Why it matters
 
 "VLMs are too slow to play games" is half true, and the missing half is the

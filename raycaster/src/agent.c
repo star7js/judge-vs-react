@@ -8,8 +8,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <signal.h>
+#include <stdlib.h>
 
-#define SOCK_PATH "/tmp/keen_ray_agent.sock"
+// Default socket path; override with KEEN_AGENT_SOCK so parallel episodes
+// (one game+agent pair each) don't collide on a single socket.
+#define SOCK_PATH_DEFAULT "/tmp/keen_ray_agent.sock"
+static const char *sock_path(void)
+{
+    const char *p = getenv("KEEN_AGENT_SOCK");
+    return (p && *p) ? p : SOCK_PATH_DEFAULT;
+}
 
 static int sfd = -1, cfd = -1;
 static char rbuf[8192];
@@ -29,21 +37,21 @@ static void send_state(int tick, float px, float py, int og,
 
 bool ray_agent_init(bool realtime)
 {
-    unlink(SOCK_PATH);
+    unlink(sock_path());
     sfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sfd < 0) return false;
 
     struct sockaddr_un a;
     memset(&a, 0, sizeof a);
     a.sun_family = AF_UNIX;
-    strncpy(a.sun_path, SOCK_PATH, sizeof a.sun_path - 1);
+    strncpy(a.sun_path, sock_path(), sizeof a.sun_path - 1);
 
     if (bind(sfd, (struct sockaddr *)&a, sizeof a) < 0) return false;
     if (listen(sfd, 1) < 0) return false;
     signal(SIGPIPE, SIG_IGN);
 
     printf("[agent] waiting for agent on %s (%s) ...\n",
-           SOCK_PATH, realtime ? "realtime" : "blocking");
+           sock_path(), realtime ? "realtime" : "blocking");
     fflush(stdout);
 
     cfd = accept(sfd, NULL, NULL);      // block until the agent connects
@@ -59,7 +67,7 @@ void ray_agent_shutdown(void)
 {
     if (cfd >= 0) close(cfd);
     if (sfd >= 0) close(sfd);
-    unlink(SOCK_PATH);
+    unlink(sock_path());
     sfd = cfd = -1;
 }
 
