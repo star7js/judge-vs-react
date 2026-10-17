@@ -267,6 +267,63 @@ def test_s5_judge_battery_and_first_passage():
     assert abs(p_false_commit_two_consecutive(1.0) - 1.0) < 1e-12
 
 
+def test_fog_judge_battery():
+    # Paper (fog section): the S5 judge's battery at fog 1, 108 frames x 3
+    # samples. Still unanimous on most in-window frames, but a far-field
+    # false JUMP at x = 2.85 (1/3), isolated early JUMPs at 8.38, 8.73, 8.80,
+    # unanimous from 8.87, and two non-unanimous in-window frames.
+    import json
+    path = os.path.join(os.path.dirname(__file__), "..", "realmodel", "battery_v4_high_fog1.json")
+    rows = json.load(open(path))
+    assert len(rows) == 108 and {r["n"] for r in rows} == {3}
+    pre = {r["px"]: r["jump"] for r in rows if r["px"] < 8.921 and r["jump"]}
+    assert pre == {2.85: 1, 8.38: 1, 8.73: 2, 8.8: 2, 8.87: 3}
+    missed = {r["px"]: r["jump"] for r in rows if 8.921 <= r["px"] < 9.999 and r["jump"] < 3}
+    assert missed == {9.01: 2, 9.78: 1}
+
+
+def test_fog_realmodel_boundary_sweep():
+    # Paper (fog section): same judge, fog 1, 72 episodes. Commit point
+    # spreads over five ticks; 35/72 commit early (vs 9/72 at fog 0).
+    # In-window: 19/19 clear through r = 0.97, 0/18 from r = 1.04; r* = 1.01.
+    # 22/35 early commits rescued, all with 4 <= D <= 17. Both sweeps clear
+    # 41/72. Every episode in both sweeps obeys: cleared iff the takeoff
+    # lands inside the window extended by the same-tick tolerance,
+    # w_lo <= commit + v*D <= 10.06.
+    from collections import Counter
+    base = os.path.join(os.path.dirname(__file__), "..", "realmodel")
+    fog0 = _rows(os.path.join(base, "sonnet_boundary_sweep.jsonl"))
+    fog1 = _rows(os.path.join(base, "sonnet_boundary_sweep_fog1.jsonl"))
+    assert len(fog1) == 72 and {r["fog"] for r in fog1} == {1.0}
+    assert {(r["delay"], r["seed"]) for r in fog1} == {(r["delay"], r["seed"]) for r in fog0}
+    r_of = lambda row: ratio(row, source="delay")
+
+    commits = Counter(round(r["decision_x"], 2) for r in fog1)
+    assert commits == {8.8: 11, 8.87: 24, 8.94: 19, 9.01: 17, 9.08: 1}
+    inw = [r for r in fog1 if r["in_window"] == 1]
+    out = [r for r in fog1 if r["in_window"] == 0]
+    assert (len(inw), len(out)) == (37, 35)
+    assert (sum(r["cleared"] for r in inw if r_of(r) <= 0.98), sum(1 for r in inw if r_of(r) <= 0.98)) == (19, 19)
+    assert (sum(r["cleared"] for r in inw if r_of(r) >= 1.0), sum(1 for r in inw if r_of(r) >= 1.0)) == (0, 18)
+    fit = transition_fit([r_of(r) for r in inw], [r["cleared"] for r in inw])
+    assert round(fit["r_star"], 2) == 1.01
+    assert sum(r["cleared"] for r in out) == 22
+    # 21 rescued with 4 <= D <= 17 (every early commit in that band), plus one
+    # 8.80 commit at D = 18 that lands exactly on the 10.06 tolerance edge.
+    assert sum(1 for r in out if r["cleared"] and 4 <= r["delay"] <= 17) == 21
+    assert all(r["cleared"] for r in out if 4 <= r["delay"] <= 17)
+    assert [(r["decision_x"], r["delay"]) for r in out if r["cleared"] and r["delay"] > 17] == [(8.8, 18)]
+    assert sum(r["cleared"] for r in fog1) == 41 == sum(r["cleared"] for r in fog0)
+    assert (sum(r["cleared"] for r in fog0 if r["in_window"]), sum(r["cleared"] for r in fog0 if not r["in_window"])) == (36, 5)
+    assert (sum(r["cleared"] for r in fog1 if r["in_window"]), sum(r["cleared"] for r in fog1 if not r["in_window"])) == (19, 22)
+    for rows in (fog0, fog1):
+        for r in rows:
+            landing = r["decision_x"] + 0.07 * r["delay"]
+            assert (8.921 <= landing <= 10.065) == bool(r["cleared"]), (r["decision_x"], r["delay"], r["cleared"])
+    pooled = transition_fit([r_of(r) for r in fog1], [r["cleared"] for r in fog1])
+    assert round(pooled["r_star"], 2) == 1.07 and pooled["slope"] < 20 and fit["slope"] > 300
+
+
 def test_s5_realmodel_boundary_sweep():
     # S5: Sonnet 4.6 swept through the boundary by injected delay, its own
     # frame judgment in the loop. Paper: 72 episodes, in-window decisions

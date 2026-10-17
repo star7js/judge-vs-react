@@ -30,7 +30,12 @@ single-frame benchmark cannot: a per-frame judge is a first-passage process,
 so a 1–2% per-frame false-JUMP rate fires almost surely somewhere over the
 ~90-frame approach unless a commit rule suppresses it; and its commit point is
 nearly deterministic (63/72 in-window decisions within one tick), so the real
-transition is a step, not a psychometric curve. On the perception axis,
+transition is a step, not a psychometric curve. Under fog the same judge's
+commit point spreads over five ticks and 35/72 episodes commit early; the
+in-window boundary is unchanged (`r* = 1.01`), 22 of the early commits are
+rescued by the delay, and both sweeps clear exactly 41/72 with opposite
+composition — an aggregate score cannot tell them apart. On the perception
+axis,
 measured through the API on a balanced 100-frame battery, no hosted model
 judges the depth cue unprompted (all at chance), every model does once the
 prompt names the cue (91–99%), and fog then degrades the smallest model most
@@ -79,11 +84,15 @@ the boundary are *delay-rescued misjudgments*. Around it:
   almost surely per approach unless a commit rule suppresses it. And the
   judge's commit point is nearly deterministic, so its transition is a step
   rather than a curve.
-- **Perception axis (§4.7).** Through the API, no model judges the depth cue
+- **Fog in closed loop (§4.7).** The same judge swept through the boundary
+  under fog: its commit point spreads over five ticks, 35/72 episodes commit
+  early, the in-window boundary does not move, and 22 of the early commits are
+  rescued by delay. Both sweeps score 41/72.
+- **Perception axis (§4.8).** Through the API, no model judges the depth cue
   unprompted; every model does once the prompt names it; fog then costs the
   smallest model most. An earlier subagent-judged pilot claiming unprompted
   depth reading is retracted.
-- **Latency axis (§4.8).** Five real vision models' decision latencies placed
+- **Latency axis (§4.9).** Five real vision models' decision latencies placed
   on the same axis: at this sim speed all are past the boundary, hosted
   frontier models at `r ≈ 4–6` and local open VLMs at `r ≈ 31–47`.
 - **Control (Appendix A).** Action-repeat adds polling delay and shifts the
@@ -235,7 +244,7 @@ committed jump is applied `D` ticks later, and sweeping `D ∈ {0..31}` sweeps
 `r = v·D/W` from 0 to 2, densely around `r = 1` (72 episodes; 6,612 vision
 calls).
 
-**Judge protocol.** The episode prompt used for the latency battery (§4.8)
+**Judge protocol.** The episode prompt used for the latency battery (§4.9)
 turns out never to elicit JUMP near the window from *any* hosted model: it
 describes the pit as "the black band across the floor ahead," which stops
 matching the close-range view — inside the window the pit is a black region
@@ -319,7 +328,50 @@ know, because it sets how much of the window is left after the commit.
 Measuring it on weaker cues (fog) and weaker judges is the obvious next
 experiment.
 
-### 4.7 Perception axis — Fig. `fig_perception_v2.png`
+### 4.7 The same judge through the boundary under fog — Fig. `fig_realmodel_fog.png`
+
+The single-frame battery of §4.8 says fog costs the cue-prompted Sonnet
+nothing per frame. The §4.4 judge's own battery under fog (108 approach frames
+× 3 samples at high effort) says it costs
+something per approach: the judge still fires on every in-window frame, but it
+also fires early more often — isolated JUMPs at `x = 8.38`, 8.73 and 8.80, a
+far-field false JUMP at `x = 2.85` (1/3), and two in-window frames that were
+not unanimous. We therefore repeated the §4.4 sweep at fog 1: same judge, same
+prompt, same 12 delays × 6 seeds (72 episodes; 6,669 vision calls), with
+nothing changed but the renderer's fog.
+
+**The commit point spreads.** In clear weather 63/72 commits sat at `x = 8.94`
+or 9.01, inside the window. Under fog the commits spread over five ticks —
+8.80 (11), 8.87 (24), 8.94 (19), 9.01 (17), 9.08 (1) — and **35/72 land before
+the window opens**, against 9/72 in clear weather. This is the perception
+failure in closed loop: the same prompt reads the thinning sliver of floor
+less reliably when fog lowers its contrast, and the judge fires a frame or two
+early about half the time. It is also the commit-point spread that §4.6 asked
+for, obtained by weakening the cue rather than the judge.
+
+**The timing boundary does not move.** Among in-window commits the law is as
+sharp as before: **19/19 clear through `r = 0.97` and 0/18 from `r = 1.04`
+on**; the logistic fit gives `r* = 1.01` (clear weather: 1.05). The small shift
+is the commit-offset term of the Discussion: the fog judge's in-window commits
+at `D = 16` sat at 9.01 and 9.08 rather than 8.94, so less of the window was
+left and the same delay overshot. Across both sweeps every one of the 144
+episodes obeys a single rule — it clears iff the takeoff lands inside the
+window extended by the same-tick tolerance, `w_lo ≤ x_commit + v·D ≤ 10.06` —
+so the judge's entire contribution to the outcome is where it commits.
+
+**The axes compensate at scale.** 22 of the 35 early commits clear: 21 with
+`4 ≤ D ≤ 17`, where the delay carries an 8.80 or 8.87 takeoff into the window,
+and one 8.80 commit at `D = 18` that lands exactly on the tolerance edge. Below the boundary the perception errors are invisible (21/21 early
+commits in that band clear, exactly like the correct decisions), and at
+`D = 17` (`r = 1.10`) the only four clears in six episodes are misjudgments.
+**Both sweeps clear exactly 41/72.** In clear weather that is 36 correct
+decisions plus 5 rescued errors; under fog it is 19 plus 22. An aggregate
+success rate cannot tell these apart. Pooling all 72 fog episodes into one
+logistic fit even produces the smooth psychometric curve a benchmark would
+report (`r* = 1.07`, slope 14, against slope 409 for the in-window fit) — a
+curve that describes the mixture of correct and early commits, not the judge.
+
+### 4.8 Perception axis — Fig. `fig_perception_v2.png`
 
 Does a vision model judge this jump from a single frame? We measured it
 through the API, blind, on a balanced battery. For each fog level we render
@@ -376,9 +428,10 @@ of that reading to fog. Both measurements are at zero delay and independent of
 the timing axis. The §4.4 judge is the cue-prompted Sonnet at high effort, so
 its per-frame accuracy at fog 0 is the 91% cell above with the effort raised;
 §4.5 shows why a 9/50 pre-window false-JUMP rate at medium effort would be
-fatal in closed loop.
+fatal in closed loop, and §4.7 is that judge taken through the boundary under
+fog.
 
-### 4.8 Placing real models' latency on the axis — Fig. `fig_latency.png`
+### 4.9 Placing real models' latency on the axis — Fig. `fig_latency.png`
 
 `r = L / T_window` places a measured decision latency on the same axis. At pit
 width 2 and `v = 0.07` tiles/tick the window is open for
@@ -393,7 +446,7 @@ quantity to report, and a deployment moves it by pausing or slowing the world
 as readily as by cutting latency. Two caveats on the measurement. These are
 time-to-answer numbers, not judgments: in the fast configuration the hosted
 models answered WAIT on nearly every frame (Haiku and Sonnet 20/20, Opus 18/20; the
-unprompted default of §4.7) and the local models JUMP on nearly every frame; a configuration that
+unprompted default of §4.8) and the local models JUMP on nearly every frame; a configuration that
 discriminates (the §4.4 judge, ~5 s/call) is slower, so these `r` values are
 lower bounds. And each local model's first call is an order of magnitude faster
 than the rest (0.4–0.6 s against 8–12 s), consistent with a warm cache; the
@@ -428,14 +481,19 @@ the model; conversely, a real-time benchmark score is a product of judgment
 *and* time regime, and "VLMs are too slow to play games" is partly a fact about
 the clock they are handed. The delay-rescued misjudgments add a sharper
 corollary: past the boundary, scores can even *reward* bad perception — the
-axes compensate, and an aggregate benchmark cannot tell. And the first-passage
-result (§4.5) says that even below the boundary, a per-frame judge has to be
-evaluated per episode: a false-positive rate that rounds to zero per frame does
-not round to zero per approach.
+axes compensate, and an aggregate benchmark cannot tell. The fog sweep (§4.7)
+makes the compensation quantitative: the same aggregate score, 41/72, is 36
+correct plus 5 rescued in clear weather and 19 plus 22 under fog, and pooling
+the fog episodes yields a smooth psychometric curve that belongs to the
+mixture, not to the judge. And the first-passage result (§4.5) says that even
+below the boundary, a per-frame judge has to be evaluated per episode: a
+false-positive rate that rounds to zero per frame does not round to zero per
+approach.
 
 ## 6. Limitations
 
-- **The real-model sweep (§4.4) is one model at one pit width, at fog 0.** Its
+- **The real-model sweeps (§4.4, §4.7) are one model at one pit width, at two
+  fog levels.** Its
   judge uses a revised prompt (the latency-battery prompt elicits no JUMPs near
   the window from any hosted model) plus a two-consecutive-JUMP commit rule,
   developed against and validated on the same 108 approach frames the sweep
@@ -443,10 +501,12 @@ not round to zero per approach.
   not the shipped default. Its `r` axis is engineered by injected delay with
   the model's judgment in the loop; the model's own wall-clock latency
   (~5 s/call at high effort) remains far past `r*`, so a wall-clock-real sweep
-  is still impossible for the measured field — that is §4.8's point, not a
-  gap. The anticipated *noisy* psychometric curve did not materialize — this
-  judge's decision variance is sub-tick — so mapping a genuinely noisy
-  transition needs a weaker cue or a weaker judge.
+  is still impossible for the measured field — that is §4.9's point, not a
+  gap. The anticipated *noisy* psychometric curve did not materialize in either
+  sweep: fog spread the commit point, but mostly *before* the window, and
+  outcome is a deterministic function of commit position and delay, so the
+  in-window transition stayed a step. A smooth in-window curve needs a judge
+  whose commit varies within the window.
 - **The location `r ≈ 1` is definitional for leading-edge policies.** The
   agreement between the pit and aiming oracles (§4.1, §4.3) checks the
   apparatus; it is not evidence that real agents on other tasks share a
@@ -459,7 +519,7 @@ not round to zero per approach.
   per-frame rates they are evaluated at come from earlier prompt versions, not
   from the final judge (whose far-field rate on the battery was zero in 237
   samples).
-- **The perception axis is one scene, two prompts, three hosted models at
+- **The perception axis (§4.8) is one scene, two prompts, three hosted models at
   medium effort.** The cue prompt is the §4.4 judge's, so the cue-arm numbers
   are that judge's single-frame accuracy at a lower effort than the sweep
   used; a prompt that named a different cue, or a scene without a pixel-sharp
@@ -477,9 +537,9 @@ not round to zero per approach.
   ceiling. Human psychophysics is future work.
 
 ## 7. Future work
-Extending the real-model sweep to more models, pit widths, and fog levels, and
-measuring the commit-point spread on a cue without a sharp onset (the quantity
-that would turn the step into a psychometric curve); a multi-provider latency
+Extending the real-model sweeps to more models and pit widths; a cue without
+a sharp onset, to spread the commit point inside the window rather than before
+it (the quantity that would turn the step into a psychometric curve); a multi-provider latency
 panel (Gemini/GPT + more open VLMs); a human psychophysics arm; and
 multi-decision tasks, to test whether real judges have a stable enough commit
 point for `r` to stay predictive beyond single reflexes.
@@ -501,6 +561,7 @@ Action-repeat is a compute/cost lever, not a latency fix.
 - `../eval/pit/figures/fig_flip.png` — §4.2, oracle same-decision flip (3/3 at D=0; of 9 configs past r=1 only the r=1.04 same-tick case clears, 0/8 at r≥1.30).
 - `../eval/pit/figures/fig_aim.png` — §4.3, the same calibration on a rotational aiming task (r*=0.98, 205 configurations, 5 target widths).
 - `../eval/pit/figures/fig_realmodel.png` — §4.4, Sonnet 4.6 swept through the boundary in closed loop (r*=1.05; 32/32 below, 0/26 above; early decisions fail below the boundary and are the only survivors past it; data + driver in `../eval/pit/realmodel/`).
+- `../eval/pit/figures/fig_realmodel_fog.png` — §4.7, the same judge swept through the boundary in clear weather and fog (in-window r* 1.05 vs 1.01; commit-point histograms; 35/72 early commits under fog, 22 rescued).
 - `../eval/pit/figures/fig_firstpassage.png` — §4.5, the final judge's per-frame JUMP rate on all 108 approach frames, and the probability that a per-frame false-JUMP rate fires somewhere over the 90-frame approach under single-JUMP vs. two-consecutive commit rules.
 - `../eval/pit/figures/fig_perception_v2.png` — §4.7, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
 - `../eval/pit/figures/fig_latency.png` — §4.8, real per-model decision latency vs. the time budget at this sim speed, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms budget.
@@ -523,5 +584,5 @@ JUMP/WAIT call per frame, each model's fastest single-call config) and
 Reproduce the local models with `pit_agent.py --backend ollama --model <vlm>`
 (no API key). Note: the fast single-call config is a *latency* measurement; the
 hosted models default to WAIT in it (so it is not a fair perception config — the
-perception numbers in §4.7 come from the deliberate blind-judge setup).
+perception numbers in §4.8 come from the deliberate blind-judge setup).
 - Demo: `../raycaster/demo/ai_clears_pit.mp4`, `../raycaster/demo/ai_misses_pit_latency.mp4`.

@@ -39,14 +39,17 @@ DELAYS = [0, 4, 8, 12, 14, 15, 16, 17, 18, 20, 24, 31]
 SEEDS = [1, 2, 3, 4, 5, 6]
 
 
+FOG = 0.0   # overridden by --fog
+
+
 def run_one(job):
-    delay, seed = job
+    delay, seed, fog = job
     wid = os.getpid()
     os.environ["KEEN_AGENT_SOCK"] = f"/tmp/keen_sweep_sock_{wid}"
     latency_log = f"/tmp/keen_sweep_lat_{wid}.jsonl"
     frame_out = f"/tmp/keen_sweep_frame_{wid}.bmp"
     cfg = EpisodeConfig(policy="agent", pit_near=10.0, pit_width=2, speed=0.07,
-                        fog=0.0, seed=seed, delay=delay, repeat=1, model=MODEL)
+                        fog=fog, seed=seed, delay=delay, repeat=1, model=MODEL)
     t0 = time.time()
     try:
         row = rv.run_vlm_episode(BINARY, cfg, backend="vision", model=MODEL,
@@ -63,14 +66,21 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pilot", type=int, default=0, help="run N pilot episodes at D=0")
     ap.add_argument("--workers", type=int, default=6)
-    ap.add_argument("--out", default=str(HERE / "sonnet_boundary_sweep.jsonl"))
+    ap.add_argument("--fog", type=float, default=FOG,
+                    help="fog level for every episode (default 0; the fog-1 sweep uses 1.0)")
+    ap.add_argument("--delays", default=None,
+                    help="comma-separated delay grid override (default: the paper's 12 delays)")
+    ap.add_argument("--out", default=None,
+                    help="output JSONL (default: sonnet_boundary_sweep.jsonl, or _fog{F}.jsonl for fog > 0)")
     a = ap.parse_args()
 
-    out_path = Path(a.out)
+    delays = [int(x) for x in a.delays.split(",")] if a.delays else DELAYS
+    out_path = Path(a.out) if a.out else HERE / (
+        "sonnet_boundary_sweep.jsonl" if a.fog == 0 else f"sonnet_boundary_sweep_fog{a.fog:.0f}.jsonl")
     if a.pilot:
-        grid = [(0, s) for s in range(1, a.pilot + 1)]
+        grid = [(0, s, a.fog) for s in range(1, a.pilot + 1)]
     else:
-        grid = [(d, s) for d in DELAYS for s in SEEDS]
+        grid = [(d, s, a.fog) for d in delays for s in SEEDS]
 
     done = set()
     if out_path.exists():
@@ -78,7 +88,7 @@ def main():
             if line.strip():
                 r = json.loads(line)
                 if "error" not in r:
-                    done.add((r["delay"], r["seed"]))
+                    done.add((r["delay"], r["seed"], r["fog"]))
     todo = [g for g in grid if g not in done]
     print(f"[sweep] {len(todo)} episodes to run ({len(done)} done)", flush=True)
 
