@@ -129,12 +129,14 @@ static int run_approach(const char *prefix)
 static int run_shoot(int argc, char **argv)
 {
     const char *prefix = "shot";
+    const char *offsets_arg = NULL;   // optional comma-separated offsets from the pit near edge
     PitConfig cfg = { 10.0f, 2, MOVE_SPEED, 1u, 0.0f };
     for (int i = 1; i < argc; i++) {
         if (SDL_strcmp(argv[i], "--shoot") == 0 && i + 1 < argc) prefix = argv[++i];
         else if (SDL_strcmp(argv[i], "--pit-near") == 0 && i + 1 < argc) cfg.pit_near = (float)atof(argv[++i]);
         else if (SDL_strcmp(argv[i], "--pit-width") == 0 && i + 1 < argc) cfg.pit_width = atoi(argv[++i]);
         else if (SDL_strcmp(argv[i], "--fog") == 0 && i + 1 < argc) cfg.fog = (float)atof(argv[++i]);
+        else if (SDL_strcmp(argv[i], "--offsets") == 0 && i + 1 < argc) offsets_arg = argv[++i];
     }
 
     SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
@@ -148,8 +150,25 @@ static int run_shoot(int argc, char **argv)
 
     // Fixed spread of standing positions relative to the pit near-edge, from far
     // approach up to just before the pit (never past the near edge = would fall).
-    float offs[] = { -4.0f, -3.0f, -2.25f, -1.75f, -1.25f, -1.0f, -0.75f, -0.5f, -0.25f, -0.1f };
-    int n = (int)(sizeof(offs) / sizeof(offs[0]));
+    float default_offs[] = { -4.0f, -3.0f, -2.25f, -1.75f, -1.25f, -1.0f, -0.75f, -0.5f, -0.25f, -0.1f };
+    float *offs = default_offs;
+    int n = (int)(sizeof(default_offs) / sizeof(default_offs[0]));
+    static float custom_offs[1024];
+    if (offsets_arg) {
+        // --offsets "-7.43,-7.36,..." : render exactly these offsets instead of
+        // the default spread (used by the dense perception and judge batteries).
+        n = 0;
+        const char *p = offsets_arg;
+        while (*p && n < 1024) {
+            char *end;
+            float v = strtof(p, &end);
+            if (end == p) break;
+            custom_offs[n++] = v;
+            p = end;
+            while (*p == ',' || *p == ' ') p++;
+        }
+        offs = custom_offs;
+    }
 
     for (int i = 0; i < n; i++) {
         float px = (float)(int)cfg.pit_near + offs[i];

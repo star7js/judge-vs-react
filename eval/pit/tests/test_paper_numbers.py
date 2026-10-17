@@ -136,7 +136,46 @@ def test_s4_aim_calibration():
         assert round(first_miss, 2) == 1.00, wid
 
 
+def test_perception_v2_api_battery():
+    # Paper's perception table: API battery, 100 balanced frames per cell
+    # (50 in-window, 50 out), two prompts x two fog levels x three hosted
+    # models. Neutral prompt: all at chance (Sonnet/Opus answered WAIT on
+    # 199/200 each). Cue prompt: 97/91/99% clear; 68/93/94% fog.
+    from eval.pit.analyze import perception_v2_table
+    rows = _rows("perception_judgments_v2.jsonl")
+    hosted = [r for r in rows if "API" in r["judge"]]
+    assert len(hosted) == 1200
+    assert all(r["decision"] in ("JUMP", "WAIT") for r in hosted)
+    cells = perception_v2_table(hosted)
+    want = {
+        ("claude-haiku-4-5 (API)", "blind-v1", 0.0): 52, ("claude-haiku-4-5 (API)", "blind-v1", 1.0): 48,
+        ("claude-haiku-4-5 (API)", "cue-v1", 0.0): 97, ("claude-haiku-4-5 (API)", "cue-v1", 1.0): 68,
+        ("claude-sonnet-4-6 (API)", "blind-v1", 0.0): 50, ("claude-sonnet-4-6 (API)", "blind-v1", 1.0): 50,
+        ("claude-sonnet-4-6 (API)", "cue-v1", 0.0): 91, ("claude-sonnet-4-6 (API)", "cue-v1", 1.0): 93,
+        ("claude-opus-4-8 (API)", "blind-v1", 0.0): 49, ("claude-opus-4-8 (API)", "blind-v1", 1.0): 50,
+        ("claude-opus-4-8 (API)", "cue-v1", 0.0): 99, ("claude-opus-4-8 (API)", "cue-v1", 1.0): 94,
+    }
+    got = {(j, p, f): c["correct"] for (j, p, e, f), c in cells.items()}
+    assert got == want
+    for c in cells.values():
+        assert (c["n"], c["n_in"], c["n_out"]) == (100, 50, 50)
+    neutral_jumps = {
+        j: sum(r["jump"] for r in hosted if r["judge"] == j and r["prompt"] == "blind-v1")
+        for j in ("claude-sonnet-4-6 (API)", "claude-opus-4-8 (API)")
+    }
+    assert neutral_jumps == {"claude-sonnet-4-6 (API)": 0, "claude-opus-4-8 (API)": 1}
+    # Sonnet's cue/clear errors are pre-window false JUMPs, not misses.
+    s_clear = [r for r in hosted if r["judge"] == "claude-sonnet-4-6 (API)" and r["prompt"] == "cue-v1" and r["fog"] == 0.0]
+    assert (sum(r["jump"] for r in s_clear if not r["in_window"]),
+            sum(not r["jump"] for r in s_clear if r["in_window"])) == (9, 0)
+    # Haiku under fog misses 30 of 50 in-window frames.
+    h_fog = [r for r in hosted if r["judge"] == "claude-haiku-4-5 (API)" and r["prompt"] == "cue-v1" and r["fog"] == 1.0]
+    assert sum(not r["jump"] for r in h_fog if r["in_window"]) == 30
+
+
 def test_perception_table_counts():
+    # The retracted subagent-judged pilot (n = 10 per cell); kept for the
+    # record, no longer the paper's perception table.
     rows = _rows("perception_judgments.jsonl")
     correct = {}
     for r in rows:

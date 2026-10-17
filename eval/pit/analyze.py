@@ -587,6 +587,101 @@ def fig_perception(rows: list[dict], out_path: str) -> dict:
     return result
 
 
+def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval for a binomial proportion."""
+    if n == 0:
+        return (0.0, 0.0)
+    p = k / n
+    denom = 1 + z * z / n
+    center = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return (center - half, center + half)
+
+
+def perception_v2_table(rows: list[dict]) -> dict:
+    """Accuracy, JUMP counts in/out of window, and Wilson 95% CI per
+    (judge, prompt, effort, fog) cell of the API perception battery
+    (`perception_judgments_v2.jsonl`). Keys are (judge, prompt, effort, fog)."""
+    cells: dict[tuple, dict] = {}
+    for r in rows:
+        key = (r["judge"], r.get("prompt", "blind-v1"), r.get("effort", "medium"), r["fog"])
+        c = cells.setdefault(key, {"n": 0, "correct": 0, "jump_in": 0, "n_in": 0, "jump_out": 0, "n_out": 0})
+        c["n"] += 1
+        c["correct"] += int(r["correct"])
+        if r["in_window"]:
+            c["n_in"] += 1
+            c["jump_in"] += int(r["jump"])
+        else:
+            c["n_out"] += 1
+            c["jump_out"] += int(r["jump"])
+    for c in cells.values():
+        c["acc"] = c["correct"] / c["n"]
+        c["ci"] = _wilson(c["correct"], c["n"])
+    return cells
+
+
+_JUDGE_SHORT = {
+    "claude-haiku-4-5 (API)": "Haiku 4.5",
+    "claude-sonnet-4-6 (API)": "Sonnet 4.6",
+    "claude-opus-4-8 (API)": "Opus 4.8",
+    "qwen2.5-vl-7b (local, Ollama)": "Qwen2.5-VL 7B\n(local)",
+}
+
+
+def fig_perception_v2(rows: list[dict], out_path: str) -> dict:
+    """Perception battery through the API: accuracy per judge for each
+    (prompt, fog) arm, with Wilson 95% CIs, on a balanced 100-frame set.
+    Arms: neutral prompt (unprompted depth judgment) vs the cue-naming S5
+    prompt (told which pixels decide it), at fog 0 and fog 1. Only the
+    medium-effort arms are plotted; other efforts are in the table."""
+    cells = perception_v2_table(rows)
+    judges = [j for j in _JUDGE_SHORT if any(k[0] == j for k in cells)]
+    arms = [("blind-v1", 0.0), ("blind-v1", 1.0), ("cue-v1", 0.0), ("cue-v1", 1.0)]
+    arm_label = {("blind-v1", 0.0): "neutral prompt, clear", ("blind-v1", 1.0): "neutral prompt, fog",
+                 ("cue-v1", 0.0): "cue prompt, clear", ("cue-v1", 1.0): "cue prompt, fog"}
+    colors = {("blind-v1", 0.0): "#7570b3", ("blind-v1", 1.0): "#b3b0d8",
+              ("cue-v1", 0.0): "#1b9e77", ("cue-v1", 1.0): "#d95f02"}
+
+    def cell(j, prompt, fog):
+        for eff in ("medium", "n/a"):
+            if (j, prompt, eff, fog) in cells:
+                return cells[(j, prompt, eff, fog)]
+        return None
+
+    x = np.arange(len(judges))
+    width = 0.8 / len(arms)
+    fig, ax = plt.subplots(figsize=(8.5, 5))
+    for k, arm in enumerate(arms):
+        vals, los, his = [], [], []
+        for j in judges:
+            c = cell(j, *arm)
+            vals.append(c["acc"] if c else np.nan)
+            los.append(c["acc"] - c["ci"][0] if c else 0)
+            his.append(c["ci"][1] - c["acc"] if c else 0)
+        xs = x + (k - (len(arms) - 1) / 2) * width
+        ax.bar(xs, vals, width, color=colors[arm], label=arm_label[arm],
+               yerr=[los, his], capsize=2, error_kw={"lw": 0.8})
+        for xi, v in zip(xs, vals):
+            if not np.isnan(v):
+                ax.text(xi, v + 0.03, f"{v:.0%}", ha="center", fontsize=7.5)
+    ax.axhline(0.5, color="gray", ls=":", lw=1, label="chance (balanced set)")
+    ax.set_xticks(x)
+    ax.set_xticklabels([_JUDGE_SHORT[j] for j in judges])
+    ax.set_ylim(0, 1.12)
+    ax.set_ylabel("single-frame judgment accuracy (n = 100 per cell)")
+    ax.set_title("Perception axis via the API: unprompted vs cue-prompted judgment, clear vs fog\n"
+                 "(blind to coordinates and labels; balanced in/out-of-window frames; Wilson 95% CI)")
+    ax.legend(fontsize=8, loc="upper left", ncol=2)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=130)
+    plt.close(fig)
+    print("[fig_perception_v2] " + "; ".join(
+        f"{_JUDGE_SHORT[j].split(chr(10))[0]} " + ",".join(
+            f"{p[:4]}/fog{f:.0f}={cell(j, p, f)['acc']:.0%}" for p, f in arms if cell(j, p, f))
+        for j in judges))
+    return {f"{j}|{p}|{f:.0f}": cell(j, p, f) for j in judges for p, f in arms if cell(j, p, f)}
+
+
 def fig_latency(latency_rows: list[dict], out_path: str, *,
                 w_lo: float = 8.921, w_hi: float = 9.999, speed: float = 0.07,
                 tick_s: float = DEFAULT_TICK_S, r_star: float = 1.0416) -> dict:
@@ -667,7 +762,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--oracle", default=DEFAULT_ORACLE)
     parser.add_argument("--vlm", default=DEFAULT_VLM)
-    parser.add_argument("--perception", default="eval/pit/data/perception_judgments.jsonl")
+    parser.add_argument("--perception", default="eval/pit/data/perception_judgments.jsonl",
+                        help="the retracted subagent-judged pilot (kept for the record)")
+    parser.add_argument("--perception-v2", default="eval/pit/data/perception_judgments_v2.jsonl",
+                        help="the API battery (run_perception_api.py); the paper's perception table")
     parser.add_argument("--latency", default="eval/pit/data/vlm_latency.jsonl")
     parser.add_argument("--aim", default="eval/pit/data/aim_sweep.jsonl")
     parser.add_argument("--edge", default="eval/pit/data/oracle_edge_sweep.jsonl")
@@ -700,6 +798,11 @@ def main() -> None:
         fig_perception(perception_rows, out_dir / "fig_perception.png")
     else:
         print(f"[fig_perception] skipped -- no data at {args.perception!r}")
+    perception_v2_rows = load_jsonl(args.perception_v2)
+    if perception_v2_rows:
+        fig_perception_v2(perception_v2_rows, out_dir / "fig_perception_v2.png")
+    else:
+        print(f"[fig_perception_v2] skipped -- no data at {args.perception_v2!r}")
 
     latency_rows = load_jsonl(args.latency)
     if latency_rows:

@@ -53,9 +53,11 @@ so a 1--2\% per-frame false-JUMP rate fires almost surely somewhere over the
 $\sim$90-frame approach unless a commit rule suppresses it; and its commit
 point is nearly deterministic (63/72 in-window decisions within one tick), so
 the real transition is a step, not a psychometric curve. On the perception
-axis, blind single-frame judgment
-at zero delay scales with model capability (Opus 90\%, Sonnet 80\%) and
-collapses to chance under fog. Measuring five real vision models' decision
+axis, measured through the API on a balanced 100-frame battery, no hosted
+model judges the depth cue unprompted (all at chance), every model does once
+the prompt names the cue (91--99\%), and fog then degrades the smallest model
+most (Haiku 97\% to 68\%): perception of this scene is a property of the
+prompt, and capability shows up as robustness of the cued reading. Measuring five real vision models' decision
 latency against the task's 257\,ms window, \textbf{all land past the boundary}
 --- hosted frontier models at $r \approx 4$--$6$, local open VLMs at
 $r \approx 31$--$47$ --- so none can act inside the window in real time, yet the
@@ -107,9 +109,10 @@ it:
     fires almost surely per approach unless a commit rule suppresses it. And
     the judge's commit point is nearly deterministic, so its transition is a
     step rather than a curve.
-  \item \textbf{Perception axis (\S\ref{sec:perception}).} Blind single-frame
-    judgment at zero delay scales with model capability and collapses to
-    chance under fog --- only in the models that read depth.
+  \item \textbf{Perception axis (\S\ref{sec:perception}).} Through the API,
+    no model judges the depth cue unprompted; every model does once the
+    prompt names it; fog then costs the smallest model most. An earlier
+    subagent-judged pilot claiming unprompted depth reading is retracted.
   \item \textbf{Latency axis (\S\ref{sec:latency}).} Five real vision models'
     decision latencies placed on the same axis: at this sim speed all are
     past the boundary, hosted frontier models at $r \approx 4$--$6$ and local
@@ -427,63 +430,82 @@ experiment.
 
 \subsection{Perception axis}\label{sec:perception}
 
-A capable vision model \emph{can} judge the jump from a single frame, and fog
-collapses it. We rendered standing decision frames across approach positions at
-two visibility levels and had \textbf{four blind vision models} --- three Claude
-models (Haiku 4.5, Sonnet, Opus) and one local open VLM (\code{qwen2.5-vl:7b}
-via Ollama) --- each shown only the image (no coordinates, window, or labels;
-identical seed-42 shuffled frame set) call JUMP or WAIT on each; we score each
-call against the ground-truth window. Judgment accuracy at zero delay ($n = 10$
-frames per model per condition):
+Does a vision model judge this jump from a single frame? We measured it
+through the API, blind, on a balanced battery. For each fog level we render
+100 standing frames at pit width 2 --- 50 at distinct out-of-window positions
+($x = 6.00$--$8.85$) and 50 inside the window ($x = 8.93$--$9.99$) --- shuffle
+them into neutral names with a fixed seed, and show each alone (no
+coordinates, window, or labels) to three hosted models, which answer JUMP or
+WAIT; each answer is scored against the sim's \code{in\_window} label, so
+chance on this set is 50\%. We ran two prompts. The \emph{neutral} prompt
+describes the task (auto-walking toward a pit you must jump, too early lands
+short, too late walks in) and says nothing about what the pit looks like or
+where in the frame to look. The \emph{cue} prompt is the \S\ref{sec:real}
+judge's: it tells the model to read the strip touching the bottom border of
+the frame and answer tiles or black. Sonnet~4.6 and Opus~4.8 run adaptive
+thinking at medium effort; Haiku~4.5 predates adaptive thinking and runs with
+a 2k-token thinking budget. 1{,}200 calls in all
+(Table~\ref{tab:perception}, Fig.~\ref{fig:perception}).
 
 \begin{table}[h]
   \centering
-  \caption{Blind single-frame judgment accuracy at zero delay
-  ($n = 10$ frames per model per condition; exact counts shown).}
-  \begin{tabular}{lccc}
+  \caption{Blind single-frame judgment accuracy through the API, $n = 100$
+  frames per cell (50 in-window, 50 out). Wilson 95\% intervals are
+  $\pm$5--10 points at the extremes and $\pm$10 at chance.}
+  \label{tab:perception}
+  \begin{tabular}{lcccc}
     \toprule
-    Model & Clear (fog=0) & Foggy (fog=1) & Fog effect \\
+    & \multicolumn{2}{c}{Neutral prompt} & \multicolumn{2}{c}{Cue prompt} \\
+    Model & Clear & Fog & Clear & Fog \\
     \midrule
-    Opus                    & \textbf{90\%} (9/10) & 50\% (5/10, chance) & $\mathbf{-40}$ pts \\
-    Sonnet                  & 80\% (8/10)          & 50\% (5/10, chance) & $\mathbf{-30}$ pts \\
-    Qwen2.5-VL 7B (local)   & 60\% (6/10)          & 60\% (6/10)         & 0 \\
-    Haiku 4.5               & 40\% (4/10)          & 40\% (4/10)         & 0 \\
+    Haiku 4.5   & 52\% & 48\% & 97\% & 68\% \\
+    Sonnet 4.6  & 50\% & 50\% & 91\% & 93\% \\
+    Opus 4.8    & 49\% & 50\% & 99\% & 94\% \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Two things fall out. \textbf{(1) With a clear depth cue, judgment scales with
-model capability} --- Opus 90\%, Sonnet 80\%, Qwen 60\%, Haiku 40\%. \textbf{(2)
-The fog collapse appears only in the models that actually read depth.} Opus and
-Sonnet drop to chance under fog, and each \textbf{missed every in-window frame}
-(0/5): they reported no distinguishable pit band even up close, never committed,
-and would fall. The two weak judges show \textbf{no fog effect at all} --- but
-for opposite-looking reasons that are really the same reason: Haiku sits at
-floor (it fell back on a frame-order heuristic the shuffle nullifies), and Qwen
-is strongly \emph{JUMP-biased} (it answered JUMP on 18/20 frames, clearing all
-in-window frames but also most out-of-window ones). Neither is using the depth
-cue in the first place, so neither has any perception to lose when fog removes
-it. The fog collapse is a \textbf{signature of genuine depth reading}, present
-exactly where clear-condition accuracy is high. At $n = 10$ frames per cell the
-per-model contrasts are directional rather than individually significant
-(Fisher exact, clear vs.\ fog: Opus $p = 0.14$, Sonnet $p = 0.35$; pooled
-Opus$+$Sonnet $17/20$ vs.\ $10/20$, $p = 0.04$) --- it is the coherence of the
-pattern across four models, not any single cell, that carries the claim.
+Three things fall out. \textbf{(1) Unprompted, no model judges the cue at
+all.} With the neutral prompt every model is at chance at both fog levels;
+Sonnet and Opus answered WAIT on 199 of 200 frames each without engaging
+extended thinking, and Haiku's JUMPs are scattered across the approach.
+\textbf{(2) Told where to look, every model judges it, including the
+smallest.} The cue prompt lifts clear-weather accuracy to 97\% (Haiku), 91\%
+(Sonnet) and 99\% (Opus); each contrast with the neutral prompt is Fisher
+exact $p < 10^{-9}$. \textbf{(3) Fog degrades the cued judgment where the
+model is weakest, not where it is strongest.} Haiku falls from 97\% to 68\%
+($p = 3.5 \times 10^{-8}$), missing 30 of 50 in-window frames; Opus from 99\%
+to 94\% ($p = 0.12$); Sonnet is unchanged (91\% vs.\ 93\%, $p = 0.8$), its
+clear-weather errors being false JUMPs in the tile before the window
+($x = 7.98$--$8.73$, 9/50 at medium effort) rather than misses. The capability
+ordering is visible only under fog and only with the cue.
 
-This is the perception half of the dissociation: a model that judges well with a
-clear depth cue drops to chance when fog obscures the pit's distance ---
-\textbf{at zero delay}, i.e.\ independent of the timing axis. Together,
-perception and timing are separable failure axes on one task. (Caveat: the
-Claude judges run via a subagent path, not a controlled API benchmark; the local
-VLM is a real keyless run. Judges are blinded to coordinates and labels but not
-to the task.)
+\paragraph{Retraction of the pilot result.} An earlier draft reported, from a
+10-frame-per-cell battery judged by Claude Code subagents rather than API
+calls, that Opus and Sonnet read the depth cue unprompted (90\% and 80\%) and
+collapsed to chance under fog, and called the collapse a signature of genuine
+depth reading. That result does not replicate under the controlled protocol
+above: unprompted, the same models are at chance in both conditions. We keep
+the pilot file in the repository for the record
+(\code{perception\_judgments.jsonl}) and withdraw the claim; the subagent path
+evidently supplied context that a single-frame API call does not.
+
+This reframes the perception half of the dissociation. ``Perception'' of this
+scene is not a fixed property of the model: it is almost entirely whether the
+prompt names the cue, and once it does, capability shows up as the robustness
+of that reading to fog. Both measurements are at zero delay and independent
+of the timing axis. The \S\ref{sec:real} judge is the cue-prompted Sonnet at
+high effort, so its per-frame accuracy at fog 0 is the 91\% cell above with
+the effort raised; \S\ref{sec:firstpassage} shows why a 9/50 pre-window
+false-JUMP rate at medium effort would be fatal in closed loop.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.72\linewidth]{fig_perception.png}
-  \caption{Perception axis. Fog collapses judgment to chance only for the
-  depth-reading models (Opus, Sonnet); JUMP-biased/floor judges show no fog
-  effect.}
+  \includegraphics[width=0.9\linewidth]{fig_perception_v2.png}
+  \caption{Perception axis through the API. Neutral prompt: every model at
+  chance, clear or fog. Cue prompt: every model near ceiling in clear
+  weather; fog costs Haiku 29 points, Opus 5, Sonnet none. Wilson 95\%
+  intervals.}
   \label{fig:perception}
 \end{figure}
 
@@ -504,7 +526,8 @@ is the quantity to report, and a deployment moves it by pausing or slowing the
 world as readily as by cutting latency. Two caveats on the measurement. These
 are time-to-answer numbers, not judgments: in the fast configuration the hosted
 models answered WAIT on nearly every frame (Haiku and Sonnet 20/20, Opus
-18/20) and the local models JUMP on nearly every frame; a configuration that
+18/20; the unprompted default of \S\ref{sec:perception}) and the local models
+JUMP on nearly every frame; a configuration that
 discriminates (the \S\ref{sec:real} judge, $\sim$5\,s/call) is slower, so these
 $r$ values are lower bounds. And each local model's first call is an order of
 magnitude faster than the rest (0.4--0.6\,s against 8--12\,s), consistent with
@@ -595,15 +618,14 @@ rounds to zero per frame does not round to zero per approach.
     the mechanism, and the 1--2\% per-frame rates they are evaluated at come
     from earlier prompt versions, not from the final judge (whose far-field
     rate on the battery was zero in 237 samples).
-  \item \textbf{The perception axis} mixes three Claude judges (run via a
-    subagent path, not a controlled API benchmark) with one real keyless local
-    VLM (\code{qwen2.5-vl:7b}), at $n = 10$ frames per condition --- large
-    enough for the cross-model pattern, too small for per-model significance
-    (Fisher exact $p = 0.14$--$0.35$). The open VLMs are weak/biased judges ---
-    Qwen is JUMP-biased (60\% clear, no fog effect) and
-    \code{llama3.2-vision:11b} is always-JUMP (contributes latency only, not a
-    perception point). A controlled, latency-timed multi-provider API sweep
-    still needs a key.
+  \item \textbf{The perception axis is one scene, two prompts, three hosted
+    models at medium effort.} The cue prompt is the \S\ref{sec:real} judge's,
+    so the cue-arm numbers are that judge's single-frame accuracy at a lower
+    effort than the sweep used; a prompt that named a different cue, or a
+    scene without a pixel-sharp cue, could land anywhere between the two
+    arms. Judges are blind to coordinates and labels but not to the task. A
+    local open VLM (Qwen2.5-VL 7B) is being run through the same battery and
+    is reported when complete.
   \item \textbf{The latency battery measures time-to-answer, not judgment,
     at one arbitrary sim speed.} In the fast configuration the hosted models
     answered WAIT on nearly every frame; a configuration that discriminates is
