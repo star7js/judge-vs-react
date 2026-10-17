@@ -19,21 +19,18 @@ Core fits:
   `eval/pit/tests/test_fits.py` (never fit against the deterministic oracle
   itself, which has no real fit "error" to recover).
 
-Figure writers (`fig_timing`, `fig_dissociation`, `fig_flip`, `fig_repeat`)
-each write one PNG under an output directory. The oracle policy is
-deterministic and ignores fog/seed (it decides from the true window, not a
-rendered frame), so:
-- `fig_timing` and `fig_flip` are real analyses of oracle data.
+Figure writers (`fig_timing`, `fig_edge`, `fig_flip`, `fig_repeat`, `fig_aim`,
+`fig_perception`, `fig_latency`) each write one PNG under an output
+directory. The oracle policy is deterministic and ignores fog/seed (it
+decides from the true window, not a rendered frame), so:
+- `fig_timing`, `fig_edge` and `fig_flip` are real analyses of oracle data.
 - `fig_repeat` is real oracle data too, but needs more than one `repeat`
   value to plot r* vs k; the default sweep grid only has `repeat=1`, so
   `main()` generates a small supplementary repeat sweep via the same C sim
   binary the oracle sweep uses.
-- `fig_dissociation` (judgment accuracy vs fog) *cannot* be shown with
-  oracle data -- the oracle ignores fog, so it would look perfect
-  regardless of fog and that would misrepresent a VLM's real
-  perception/decision dissociation. If no `vlm_runs.jsonl` data is
-  supplied, it writes a clearly-labeled placeholder figure instead of
-  fabricating an effect.
+- A judgment-vs-fog figure cannot be shown with oracle data (the oracle
+  ignores fog); the perception axis comes from real blind judges in
+  `fig_perception`. The S5 real-model figures live in `realmodel/`.
 """
 from __future__ import annotations
 
@@ -381,8 +378,8 @@ def fig_aim(aim_rows: list[dict], out_path: str, tick_s: float = DEFAULT_TICK_S)
                label=f"r* = {fit['r_star']:.2f}")
     ax.set_xlabel("r = omega * delay_ticks / (2h)  [angular travel / window]")
     ax.set_ylabel("cleared (shot hit the target)")
-    ax.set_title("Generality: the r~1 law on a second task\n"
-                 "(sweeping-aim; rotate through an angular window, fire once)")
+    ax.set_title("Calibration on a second task: the r~1 boundary\n"
+                 "(sweeping-aim oracle; rotate through an angular window, fire once)")
     ax.legend(loc="center left", fontsize=8)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
@@ -390,54 +387,6 @@ def fig_aim(aim_rows: list[dict], out_path: str, tick_s: float = DEFAULT_TICK_S)
     print(f"[fig_aim] r_star={fit['r_star']:.4f} slope={fit['slope']:.4f} "
           f"(n={len(r)} configs, {len(widths)} target widths)")
     return {**fit, "n": len(r)}
-
-
-def fig_dissociation(vlm_rows: list[dict] | None, out_path: str,
-                      tick_s: float = DEFAULT_TICK_S) -> dict:
-    """Judgment accuracy vs fog -- can only be shown with VLM data (the
-    oracle ignores fog entirely, so an oracle-only version would show a
-    perfect, fog-invariant curve and misrepresent a real perception
-    effect). If no VLM rows are available, writes a clearly-labeled
-    placeholder figure instead of fabricating a dissociation.
-    """
-    fig, ax = plt.subplots(figsize=(7, 5))
-
-    if not vlm_rows:
-        ax.text(
-            0.5, 0.5,
-            "Awaiting VLM runs (eval/pit/data/vlm_runs.jsonl not found or empty).\n\n"
-            "The oracle policy ignores fog by construction (it decides from the\n"
-            "true window, not a rendered frame), so oracle data cannot show a\n"
-            "perception-driven dissociation between judgment and timing.\n"
-            "This figure will populate once real VLM episodes are recorded.",
-            ha="center", va="center", fontsize=11, wrap=True,
-            transform=ax.transAxes,
-        )
-        ax.set_axis_off()
-        ax.set_title("Perception/dissociation (placeholder -- no VLM data yet)")
-        fig.tight_layout()
-        fig.savefig(out_path, dpi=150)
-        plt.close(fig)
-        print(f"[fig_dissociation] no VLM data available -- wrote placeholder to {out_path}")
-        return {"placeholder": True}
-
-    fogs = sorted({row["fog"] for row in vlm_rows})
-    for fog in fogs:
-        rows = [row for row in vlm_rows if row["fog"] == fog]
-        r = np.array([ratio(row, tick_s, source="latency") for row in rows])
-        y = np.array([row["cleared"] for row in rows], dtype=float)
-        order = np.argsort(r)
-        ax.plot(r[order], y[order], marker="o", label=f"fog={fog}")
-
-    ax.set_xlabel("r = speed * L_ticks / W")
-    ax.set_ylabel("cleared")
-    ax.set_title("Judgment/timing dissociation by fog (VLM data)")
-    ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"[fig_dissociation] wrote real VLM-data figure to {out_path}")
-    return {"placeholder": False, "fogs": fogs}
 
 
 def fig_flip(oracle_rows: list[dict], out_path: str, tick_s: float = DEFAULT_TICK_S) -> dict:
@@ -744,7 +693,6 @@ def main() -> None:
         fig_edge(edge_rows, out_dir / "fig_edge.png")
     else:
         print(f"[fig_edge] skipped -- no data at {args.edge!r} (run eval.pit.run_edge_sweep)")
-    fig_dissociation(vlm_rows, out_dir / "fig_dissociation.png")
     fig_flip(oracle_rows, out_dir / "fig_flip.png")
 
     perception_rows = load_jsonl(args.perception)

@@ -15,6 +15,7 @@ which 5 are delay-rescued.
 | `battery.py` | Frame-battery harness used to validate judge prompts against every approach frame. |
 | `battery_v4_high.json` | Validation of the final judge: 108 frames × 3 samples. |
 | `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL. |
+| `fig_firstpassage.py` | Regenerates `../figures/fig_firstpassage.png`: the final judge's per-frame JUMP rate from `battery_v4_high.json`, and the first-passage probability of a per-frame false-JUMP rate over the 90-frame approach under single-JUMP vs. two-consecutive commit rules. |
 
 ## Reproduce
 

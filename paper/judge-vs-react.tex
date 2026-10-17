@@ -47,7 +47,13 @@ in-window decisions below $r \approx 1$ and \textbf{0/26} above it
 correct decision succeeds paused and fails late. Past the boundary its
 \emph{only} surviving episodes are ones that misjudged early, their perception
 error cancelled by the delay: the two failure axes compensate, which an
-aggregate score cannot see. On the perception axis, blind single-frame judgment
+aggregate score cannot see. The real judge also exposes two things a
+single-frame benchmark cannot: a per-frame judge is a first-passage process,
+so a 1--2\% per-frame false-JUMP rate fires almost surely somewhere over the
+$\sim$90-frame approach unless a commit rule suppresses it; and its commit
+point is nearly deterministic (63/72 in-window decisions within one tick), so
+the real transition is a step, not a psychometric curve. On the perception
+axis, blind single-frame judgment
 at zero delay scales with model capability (Opus 90\%, Sonnet 80\%) and
 collapses to chance under fog. Measuring five real vision models' decision
 latency against the task's 257\,ms window, \textbf{all land past the boundary}
@@ -80,27 +86,37 @@ $t{+}D$), which lets us vary \emph{lateness} completely independently of
 \emph{judgment quality}: a perfect-judgment oracle still fails if its action
 lands too late.
 
-The headline result is \textbf{S5}: a closed-loop Sonnet~4.6 agent, judging
-every frame itself, is swept through the boundary by injected delay and clears
-32/32 in-window decisions below $r \approx 1$ and 0/26 above it, and its only
-clears past the boundary are \emph{delay-rescued misjudgments}. Around it:
+The headline result (\S\ref{sec:real}) is a closed-loop Sonnet~4.6 agent,
+judging every frame itself, swept through the boundary by injected delay: it
+clears 32/32 in-window decisions below $r \approx 1$ and 0/26 above it, and its
+only clears past the boundary are \emph{delay-rescued misjudgments}. Around
+it:
 
 \begin{itemize}
-  \item \textbf{Calibration (S1, S2, S4).} For a policy that fires at the
-    window's leading edge, clearing iff $r < 1$ is arithmetic, not a discovery.
-    Oracle sweeps on the pit (S1; $\rstar = 1.04$ on a 1-tick delay grid that
-    brackets the edge at every width) and on a rotational aiming task (S4;
-    $\rstar = 0.98$) check that the sim's dynamics, the in-window label, and
-    $r$ reproduce it without leaking tolerance, and the oracle's same-decision
-    flip (S2) previews S5 on a perfect judge.
-  \item \textbf{Perception axis.} Blind single-frame judgment at zero delay
-    scales with model capability and collapses to chance under fog --- only in
-    the models that read depth.
-  \item \textbf{Latency axis.} Five real vision models' decision latencies
-    against the task's 257\,ms window: all past the boundary, hosted frontier
-    models at $r \approx 4$--$6$ and local open VLMs at $r \approx 31$--$47$.
-  \item \textbf{Control (S3).} Action-repeat adds polling delay and shifts the
-    transition to lower explicit $r$; it is a cost lever, not a latency fix.
+  \item \textbf{Calibration (\S\ref{sec:calib}--\ref{sec:aim}).} For a policy
+    that fires at the window's leading edge, clearing iff $r < 1$ is
+    arithmetic, not a discovery. Oracle sweeps on the pit ($\rstar = 1.04$ on
+    a 1-tick delay grid that brackets the edge at every width) and on a
+    rotational aiming task ($\rstar = 0.98$) check that the sim's dynamics,
+    the in-window label, and $r$ reproduce it without leaking tolerance, and
+    the oracle's same-decision flip previews the real-model result on a
+    perfect judge.
+  \item \textbf{Two things the real judge revealed
+    (\S\ref{sec:firstpassage}, \S\ref{sec:commit}).} A per-frame judge is a
+    first-passage process: a false-JUMP rate that rounds to zero per frame
+    fires almost surely per approach unless a commit rule suppresses it. And
+    the judge's commit point is nearly deterministic, so its transition is a
+    step rather than a curve.
+  \item \textbf{Perception axis (\S\ref{sec:perception}).} Blind single-frame
+    judgment at zero delay scales with model capability and collapses to
+    chance under fog --- only in the models that read depth.
+  \item \textbf{Latency axis (\S\ref{sec:latency}).} Five real vision models'
+    decision latencies placed on the same axis: at this sim speed all are
+    past the boundary, hosted frontier models at $r \approx 4$--$6$ and local
+    open VLMs at $r \approx 31$--$47$.
+  \item \textbf{Control (Appendix~\ref{app:repeat}).} Action-repeat adds
+    polling delay and shifts the transition to lower explicit $r$; it is a
+    cost lever, not a latency fix.
 \end{itemize}
 
 \section{Related work}
@@ -173,15 +189,15 @@ therefore fixed by where the policy fires, not discovered by sweeping; a policy
 that fired at the window's center would place it at $r = 0.5$. $r$ is the
 coordinate in which that statement is exact and task-independent, which is what
 makes a measured latency $L$ interpretable against any window. The oracle
-sweeps in \S4.1--4.3 are calibration: they check that the dynamics, the label,
+sweeps in \S\ref{sec:calib}--\ref{sec:aim} are calibration: they check that the dynamics, the label,
 and $r$ reproduce the boundary with no leaked tolerance. The question with
 empirical content --- where a \emph{real} judge's commit point falls, and
 whether its outcome flips at that boundary with nothing else varied --- is
-\S4.4.
+\S\ref{sec:real}.
 
 \section{Results}
 
-\subsection{Calibration: the oracle boundary (S1)}
+\subsection{Calibration: the oracle boundary}\label{sec:calib}
 
 The oracle fires at the first in-window position, so a delayed takeoff lands at
 $w_{lo} + vD$ and clears iff $r < 1$; the sweep's job is to confirm that the
@@ -205,17 +221,19 @@ single tick of delay: width 1 between $r = 1.01$ ($D = 30$) and $1.04$
 between $0.89$ ($D = 1$) and $1.77$ ($D = 2$), its window being only 1.1 ticks
 wide. Every width is a clean step (every delay below its edge clears, every
 delay at or above it fails), and the pooled logistic fit gives
-$\rstar = 1.04$. This is the calibration number used below. The clears just
-past $r = 1$ are physical: a jump that fires on the same tick can take off from
-just past the near edge, extending tolerance a fraction of a tick beyond the
-nominal window. The transition is a step because the oracle is deterministic.
+$\rstar = 1.04$ (Fig.~\ref{fig:edge}). This is the calibration number used
+below. The clears just past $r = 1$ are physical: a jump that fires on the same
+tick can take off from just past the near edge, extending tolerance a fraction
+of a tick beyond the nominal window. The transition is a step because the
+oracle is deterministic.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.72\linewidth]{fig_edge.png}
-  \caption{S1 (calibration). Oracle clear/fail vs.\ $r$ on a 1-tick delay grid,
-  one step curve per pit width; each width brackets the edge within one tick
-  and the pooled logistic fit gives $\rstar = 1.04$.}
+  \caption{Calibration. Oracle clear/fail vs.\ $r$ on a 1-tick delay grid;
+  each width's shaded bracket spans its last clear to its first fail, and the
+  pooled logistic fit gives $\rstar = 1.04$.}
+  \label{fig:edge}
 \end{figure}
 
 \begin{figure}[h]
@@ -225,9 +243,10 @@ nominal window. The transition is a step because the oracle is deterministic.
   configurations, each replicated $60\times$ across fog/seed in the plotted
   rows). Its pooled fit of $\rstar = 1.17$ is the midpoint of a 4-tick gap at
   pit width 2; the 1-tick grid above supersedes it.}
+  \label{fig:timing}
 \end{figure}
 
-\subsection{Same-decision flip on the oracle (S2)}
+\subsection{Same-decision flip on the oracle}\label{sec:flip}
 
 Restricting to oracle-correct decisions (\code{in\_window} $= 1$; the oracle's
 commit position does not depend on $D$), the \textbf{identical} decision clears
@@ -237,17 +256,18 @@ above. Only execution timing changed. We do not summarize this as a pooled
 probability: six of the 9 configurations with $r > 1$ are at pit width 3, where
 $r$ runs from $3.5$ to $21$, so a rate over them would describe the delay grid
 rather than the task. The flip on a real judge, with decisions on both sides of
-the edge, is S5.
+the edge, is \S\ref{sec:real}.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.66\linewidth]{fig_flip.png}
-  \caption{S2. Oracle-correct decisions: 3/3 clear at $D = 0$; of 9 unique
+  \caption{Oracle-correct decisions: 3/3 clear at $D = 0$; of 9 unique
   configurations past $r = 1$, only the $r = 1.04$ same-tick case clears
   (0/8 at $r \ge 1.30$).}
+  \label{fig:flip}
 \end{figure}
 
-\subsection{The same calibration on a second task (S4)}
+\subsection{The same calibration on a second task}\label{sec:aim}
 
 Is the apparatus's behaviour specific to jump-timing? We built a second task in
 a different modality: a \textbf{sweeping-aim} task. The player rotates in place
@@ -265,71 +285,65 @@ kinematics and the label reproduces it. It does: across 205 unique
 configurations at five target widths (4.6\textdegree--13.8\textdegree; one
 seed, the aim oracle being deterministic) the pooled logistic fit gives
 $\rstar = 0.98$, and at every width the last hit lies at $r = 0.87$--$0.96$ and
-the first miss at exactly $r = 1.00$. The offset from the pit's $1.04$ is the
-oracles' firing phase: the pit's takeoff can extend just \emph{past} the near
-edge (a hair above 1), while the aim fires just \emph{inside} the near edge,
-forfeiting a sub-tick of tolerance (a hair below 1). Two tasks agreeing on
-$r \approx 1$ shows that $r$ is the right coordinate for both and that neither
-implementation leaks tolerance. It is not evidence of an empirical law: a
-policy that fired at the window's center would place its boundary at $r = 0.5$
-in the same apparatus. What the next section asks is where a real judge's
-commit point actually falls.
+the first miss at exactly $r = 1.00$ (Fig.~\ref{fig:aim}). The offset from the
+pit's $1.04$ is the oracles' firing phase: the pit's takeoff can extend just
+\emph{past} the near edge (a hair above 1), while the aim fires just
+\emph{inside} the near edge, forfeiting a sub-tick of tolerance (a hair below
+1). Two tasks agreeing on $r \approx 1$ shows that $r$ is the right coordinate
+for both and that neither implementation leaks tolerance. It is not evidence of
+an empirical law: a policy that fired at the window's center would place its
+boundary at $r = 0.5$ in the same apparatus. What the next section asks is
+where a real judge's commit point actually falls.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.72\linewidth]{fig_aim.png}
-  \caption{S4 (calibration on a second task). The rotational aiming oracle
+  \caption{Calibration on a second task. The rotational aiming oracle
   reproduces the $r \approx 1$ boundary ($\rstar = 0.98$; 205 configurations,
   5 target widths).}
+  \label{fig:aim}
 \end{figure}
 
-\subsection{A real model through the boundary (S5)}
+\subsection{A real model through the boundary}\label{sec:real}
 
 The oracle sections calibrate the boundary; here a real model is swept
 \emph{through} it with its own judgment in the loop. Because the apparatus
 decouples sim time from wall-clock, the model's (slow, variable) API latency is
-free, and $r$ is engineered exactly as in S1: Sonnet~4.6 judges \emph{every
-grounded frame} of a closed-loop blocking episode (pit width 2, $v = 0.07$,
-fog 0, seeds 1--6), its committed jump is applied $D$ ticks later, and sweeping
-$D \in \{0, \dots, 31\}$ sweeps $r = vD/W$ from $0$ to $2$, densely around
-$r = 1$ (72 episodes; 6{,}612 vision calls).
+free, and $r$ is engineered exactly as in \S\ref{sec:calib}: Sonnet~4.6 judges
+\emph{every grounded frame} of a closed-loop blocking episode (pit width 2,
+$v = 0.07$, fog 0, seeds 1--6), its committed jump is applied $D$ ticks later,
+and sweeping $D \in \{0, \dots, 31\}$ sweeps $r = vD/W$ from $0$ to $2$,
+densely around $r = 1$ (72 episodes; 6{,}612 vision calls).
 
 \paragraph{Judge protocol.} The episode prompt used for the latency battery
-(\S4.6) turns out never to elicit JUMP near the window from \emph{any} hosted
-model: it describes the pit as ``the black band across the floor ahead,'' which
-stops matching the close-range view --- inside the window the pit is a black
-region filling the bottom of the frame, and the visible checkered floor is the
-pit's \emph{far} side. The S5 judge instead answers a literal perceptual
-question (``what touches the bottom border of the image: tiles or black?'') at
-high reasoning effort, with a commit rule of two consecutive JUMP answers. The
-commit rule matters: in prompt-development batteries we measured isolated false
-JUMPs at the 1--2\% per-call level far from the pit, and any such rate fires
-almost surely somewhere over the $\sim$90 consulted approach frames --- a
-first-passage failure mode that single-frame accuracy batteries cannot see. We
-validated the final judge on all 108 approach frames $\times$ 3 samples: zero
-far-field JUMPs, unanimous JUMP inside the window, and isolated misfires only in
-the last half-tile before the window ($x = 8.10$--$8.24$) --- the source of the
-9/72 early commits below. This judge was developed against, and validated on,
-the same renderer, pit width, and fog level the sweep uses; it is a judge tuned
-to this scene, and we make no claim that it transfers. The bottom-edge cue is
-nearly ideal in this renderer: the pit's black region first touches the frame's
-bottom edge at $x = 9.01$, one tick after the window opens ($w_{lo} = 8.92$).
+(\S\ref{sec:latency}) turns out never to elicit JUMP near the window from
+\emph{any} hosted model: it describes the pit as ``the black band across the
+floor ahead,'' which stops matching the close-range view --- inside the window
+the pit is a black region filling the bottom of the frame, and the visible
+checkered floor is the pit's \emph{far} side. The judge used here instead
+answers a literal perceptual question (``what touches the bottom border of the
+image: tiles or black?'') at high reasoning effort, and commits only on two
+consecutive JUMP answers; \S\ref{sec:firstpassage} explains why that commit
+rule is forced rather than cosmetic. We validated the final judge on all 108
+approach frames $\times$ 3 samples (Fig.~\ref{fig:firstpassage}, left): zero
+JUMPs on the first 79 frames, isolated JUMPs at $x = 8.10$ (1/3) and $8.24$
+(2/3), and unanimous JUMP from $x = 8.87$ on. This judge was developed against,
+and validated on, the same renderer, pit width, and fog level the sweep uses;
+it is a judge tuned to this scene, and we make no claim that it transfers. The
+bottom-edge cue is nearly ideal in this renderer: the pit's black region first
+touches the frame's bottom edge at $x = 9.01$, one tick after the window opens
+($w_{lo} = 8.92$).
 
 \paragraph{The boundary holds for a real judge.} Episodes whose decision lands
 in the window clear \textbf{32/32 through $r = 0.97$}, 4/5 at $r = 1.04$, and
-\textbf{0/26 from $r = 1.10$ on}; the same logistic fit as S1 gives
-$\rstar = 1.05$, coinciding with the oracle's width-2 bracket $[1.04, 1.10]$
-on the 1-tick grid: the real judge's edge sits where the perfect judge's does,
-same-tick tolerance included. The transition is
-nearly as sharp as the oracle's, for an unplanned reason: the model's commit
-position is almost deterministic --- 51/72 episodes commit at $x = 8.94$ and 12
-at $x = 9.01$, straddling the cue's pixel-level onset (the model begins
-answering ``black'' one tick before the black region literally reaches the
-bottom edge at $x = 9.01$). The anticipated noisy psychometric curve compresses
-to a near-step; this judge's decision-position variance is sub-tick, so the
-model behaves as a \emph{slightly-early oracle} rather than a noisy one. Given
-that commit point, the \emph{location} of $\rstar$ follows from the kinematics
-exactly as in S1. What S5 establishes that the oracle cannot is the
+\textbf{0/26 from $r = 1.10$ on}; the same logistic fit as \S\ref{sec:calib}
+gives $\rstar = 1.05$, coinciding with the oracle's width-2 bracket
+$[1.04, 1.10]$ on the 1-tick grid: the real judge's edge sits where the
+perfect judge's does, same-tick tolerance included (Fig.~\ref{fig:realmodel}).
+The transition is nearly as sharp as the oracle's because the model's commit
+position is almost deterministic (\S\ref{sec:commit}); given that commit point,
+the \emph{location} of $\rstar$ follows from the kinematics exactly as in
+\S\ref{sec:calib}. What this sweep establishes that the oracle cannot is the
 dissociation itself on a real judge: the same model, making the same
 frame-by-frame decisions, clears every in-window decision below the boundary
 and none above it, with nothing varied but $D$.
@@ -349,13 +363,69 @@ out-of-window.
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.72\linewidth]{fig_realmodel.png}
-  \caption{S5. Sonnet 4.6 swept through the boundary in closed loop
+  \caption{Sonnet 4.6 swept through the boundary in closed loop
   ($\rstar = 1.05$, in-window decisions). Crosses are out-of-window (early)
   decisions: they fail below the boundary and are the only survivors past it
   (delay-rescued perception errors).}
+  \label{fig:realmodel}
 \end{figure}
 
-\subsection{Perception axis}
+\subsection{A frame-by-frame judge is a first-passage process}\label{sec:firstpassage}
+
+The commit rule above is not a prompt-engineering detail; the structure of the
+task forces it. A frame-by-frame controller is consulted on every approach
+frame, and the episode is decided by the \emph{first} JUMP it commits to, so
+any per-frame false-positive rate compounds over the approach. With a
+per-frame false-JUMP rate $p$ over the $N \approx 90$ frames before the window,
+a single-JUMP commit rule fires somewhere early with probability
+$1 - (1-p)^N$: \textbf{60\% at $p = 1\%$ and 84\% at $p = 2\%$}, the rates we
+measured for earlier prompt versions far from the pit. Under the same
+independent-error assumption the two-consecutive rule fires with probability
+0.9\% and 3.4\% respectively (Fig.~\ref{fig:firstpassage}, right; exact
+two-state chain). A single-frame accuracy battery --- the standard way to
+evaluate a VLM judge --- scores a 1\% false-positive rate as 99\% accuracy and
+cannot see this. The final judge's own battery (Fig.~\ref{fig:firstpassage},
+left) shows the residual: its only pre-window JUMPs are in the tile before the
+window ($x = 8.10$--$8.24$), and committing there requires two consecutive
+misfires, which is what the sweep's 9/72 early episodes are. Its unanimous JUMP
+from $x = 8.87$, one frame before the window opens, is converted by the commit
+rule into a commit at $8.94$, inside the window. The residual errors are not
+independent across frames --- they cluster where the floor sliver below the pit
+becomes thin --- so the independent-error curves are an idealization; the
+mechanism is not. Any deployment of a VLM as a per-frame trigger needs a commit
+rule or an equivalent, and needs to be evaluated per episode, not per frame.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.98\linewidth]{fig_firstpassage.png}
+  \caption{Left: the final judge's per-frame JUMP rate on every approach frame
+  (108 frames $\times$ 3 samples) against the window. Right: the probability
+  that a per-frame false-JUMP rate fires at least once over the 90 approach
+  frames, for a single-JUMP commit rule and for the two-consecutive rule,
+  assuming independent per-frame errors.}
+  \label{fig:firstpassage}
+\end{figure}
+
+\subsection{The commit point is nearly deterministic}\label{sec:commit}
+
+The sweep's in-window decisions commit at $x = 8.94$ in 51/72 episodes and at
+$x = 9.01$ in 12 --- within one tick of each other across 63 episodes and six
+seeds, with the judge's own sampling stochasticity (adaptive thinking at high
+effort) in the loop. We expected a noisy psychometric curve and got a
+near-step. Two readings. The optimistic one: on a rendered depth cue with a
+pixel-sharp onset, a frontier VLM's judgment is effectively deterministic at
+the tick scale, so in a deployment like this one timing failures are failures
+of latency, not of judgment variance --- the clean separation this paper's
+framing assumes. The cautious one: the judge was tuned to this cue, and its
+one-tick lead (answering ``black'' at $8.94$, before the region literally
+reaches the bottom edge at $9.01$) shows it is reading a thinning sliver of
+floor rather than the edge itself. A cue without a sharp onset would presumably
+spread the commit point, and that spread is the quantity a real-time deployment
+needs to know, because it sets how much of the window is left after the commit.
+Measuring it on weaker cues (fog) and weaker judges is the obvious next
+experiment.
+
+\subsection{Perception axis}\label{sec:perception}
 
 A capable vision model \emph{can} judge the jump from a single frame, and fog
 collapses it. We rendered standing decision frames across approach positions at
@@ -414,22 +484,37 @@ to the task.)
   \caption{Perception axis. Fog collapses judgment to chance only for the
   depth-reading models (Opus, Sonnet); JUMP-biased/floor judges show no fog
   effect.}
+  \label{fig:perception}
 \end{figure}
 
-\subsection{Real models' latency against the window}
+\subsection{Placing real models' latency on the axis}\label{sec:latency}
 
-Because the decision cost is exactly $r = L / T_{\text{window}}$, where the
-window is open for $T_{\text{window}} = (W/v)\cdot\text{tick} = 257\,\text{ms}$
-at pit width 2 ($W = 1.078$, $v = 0.07$, tick $= 1/60\,$s), the $\rstar$
-boundary sets a \textbf{maximum tolerable decision latency of
-$\rstar\cdot T_{\text{window}} \approx 270\,$ms}. We timed five vision models
-on the identical 20-frame decision battery, in each model's \emph{fastest}
-single-call configuration ($n = 20$ each):
+$r = L / T_{\text{window}}$ places a measured decision latency on the same
+axis. At pit width 2 and $v = 0.07$ tiles/tick the window is open for
+$T_{\text{window}} = (W/v)\cdot\text{tick} = 257\,$ms (tick $= 1/60\,$s), so the
+calibrated boundary corresponds to $\rstar\cdot T_{\text{window}} \approx
+270\,$ms. We timed five vision models on the same 20-frame battery, in each
+model's fastest single-call configuration (Table~\ref{tab:latency},
+Fig.~\ref{fig:latency}): hosted frontier models answer in 1--1.5\,s
+($r \approx 4$--$6$) and local open VLMs in 8--12\,s ($r \approx 31$--$47$).
+None is inside the window at this speed. The multiples are a property of the
+speed we chose --- $T_{\text{window}}$ scales as $1/v$, and a world slowed
+$4\times$ puts the hosted models at the boundary --- which is the point: $r$
+is the quantity to report, and a deployment moves it by pausing or slowing the
+world as readily as by cutting latency. Two caveats on the measurement. These
+are time-to-answer numbers, not judgments: in the fast configuration the hosted
+models answered WAIT on nearly every frame (Haiku and Sonnet 20/20, Opus
+18/20) and the local models JUMP on nearly every frame; a configuration that
+discriminates (the \S\ref{sec:real} judge, $\sim$5\,s/call) is slower, so these
+$r$ values are lower bounds. And each local model's first call is an order of
+magnitude faster than the rest (0.4--0.6\,s against 8--12\,s), consistent with
+a warm cache; the medians are unaffected.
 
 \begin{table}[h]
   \centering
   \caption{Measured per-model decision latency (median of $n = 20$ single-frame
   calls, fastest configuration) against the 257\,ms window at pit width 2.}
+  \label{tab:latency}
   \begin{tabular}{lrr}
     \toprule
     Model & Median $L$ & $r = L / \text{window}$ \\
@@ -443,39 +528,119 @@ single-call configuration ($n = 20$ each):
   \end{tabular}
 \end{table}
 
-\textbf{None clear the 270\,ms budget.} Even the \emph{fastest hosted frontier
-model} is $\sim$4$\times$ too slow, and local open VLMs are 30--47$\times$. This
-is the concrete version of ``VLMs are too slow to play games'': the whole
-measured field would need the world \textbf{paused, or slowed 4--47$\times$}, to
-act inside the window --- and the gap is a property of the \emph{time regime},
-not the model, since $r$ here is $L/\text{window}$ with judgment held out
-entirely. These are time-to-answer measurements, not judgments: in this fast
-configuration the hosted models answered WAIT on nearly every frame (Haiku and
-Sonnet 20/20, Opus 18/20) and the local models answered JUMP on nearly every
-frame, so the numbers are each model's best case --- no extended thinking, and
-a configuration that actually discriminates (the S5 judge, $\sim$5\,s/call) is
-only slower. Each local model's first call is an order of magnitude faster than
-the rest (0.4--0.6\,s against 8--12\,s), consistent with a warm cache; the
-medians are unaffected. Local latency is on-device --- a real, reproducible
-closed-loop number.
-
-A closed-loop episode (blocking mode) confirms the local model is non-viable,
-though the two failure modes should be separated: \code{llama3.2-vision} also
-\emph{fails perception} --- it answered JUMP on all 20 frames (no depth
-discrimination), so in blocking mode it jumps at tick 0 from $x \approx 2.6$
-(far from the pit at $x = 10$) and falls. The latency result is the
-axis-independent point: $r > \rstar$ dooms even a model that judges correctly,
-the moment the world is allowed to run in real time.
-
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.86\linewidth]{fig_latency.png}
-  \caption{Real per-model decision latency vs.\ the time budget. Hosted
-  Haiku/Sonnet/Opus ($r \approx 4$--$6$) and local Qwen/llama3.2-vision
-  ($r \approx 31/47$); all past the $\approx$270\,ms max-tolerable budget.}
+  \caption{Real per-model decision latency vs.\ the time budget at this sim
+  speed. Hosted Haiku/Sonnet/Opus ($r \approx 4$--$6$) and local
+  Qwen/llama3.2-vision ($r \approx 31/47$); all past the $\approx$270\,ms
+  budget.}
+  \label{fig:latency}
 \end{figure}
 
-\subsection{Control: action-repeat does not rescue (S3)}
+\section{Discussion}
+
+The two failure axes have opposite fixes, and the framing makes the requirement
+quantitative. A perception failure wants a better model: no amount of extra
+time helps a judge that reports no distinguishable pit band under fog. A timing
+failure wants a slower clock: a judge that commits a fraction $\delta$ of the
+window past its leading edge is viable exactly when
+$r = L / T_{\text{window}} < 1 - \delta$ (plus the same-tick tolerance). For
+the oracle and for the Sonnet judge of \S\ref{sec:real}, $\delta \approx 0.02$,
+which is why both sit at $\rstar \approx 1$; a judge that committed mid-window
+would have $\rstar = 0.5$ in the same apparatus, and the spread of its commit
+point (\S\ref{sec:commit}) would turn the step into a curve. A deployment can
+cross the boundary by pausing the world ($r \to 0$), slowing it (raising
+$T_{\text{window}}$), or cutting latency --- and at this sim speed the measured
+field needs 4--47$\times$ on the latter two. \S\ref{sec:real} is the direct
+demonstration: the same model, same judgment, clears 32/32 below the boundary
+and 0/26 above it, with nothing varied but $r$. The practical reading is that
+pausable or turn-based deployment converts every slow-but-accurate model we
+measured from failing to viable, with no change to the model; conversely, a
+real-time benchmark score is a product of judgment \emph{and} time regime, and
+``VLMs are too slow to play games'' is partly a fact about the clock they are
+handed. The delay-rescued misjudgments add a sharper corollary: past the
+boundary, scores can even \emph{reward} bad perception --- the axes
+compensate, and an aggregate benchmark cannot tell. And the first-passage
+result (\S\ref{sec:firstpassage}) says that even below the boundary, a
+per-frame judge has to be evaluated per episode: a false-positive rate that
+rounds to zero per frame does not round to zero per approach.
+
+\section{Limitations}
+
+\begin{itemize}
+  \item \textbf{The real-model sweep (\S\ref{sec:real}) is one model at one
+    pit width, at fog 0.} Its judge uses a revised prompt (the latency-battery
+    prompt elicits no JUMPs near the window from any hosted model) plus a
+    two-consecutive-JUMP commit rule, developed against and validated on the
+    same 108 approach frames the sweep draws from --- a judge tuned to this
+    scene, and a documented apparatus change, not the shipped default. Its $r$
+    axis is engineered by injected delay with the model's judgment in the
+    loop; the model's own wall-clock latency ($\sim$5\,s/call at high effort)
+    remains far past $\rstar$, so a wall-clock-real sweep is still impossible
+    for the measured field --- that is \S\ref{sec:latency}'s point, not a gap.
+    The anticipated \emph{noisy} psychometric curve did not materialize ---
+    this judge's decision variance is sub-tick --- so mapping a genuinely
+    noisy transition needs a weaker cue or a weaker judge.
+  \item \textbf{The location $r \approx 1$ is definitional for leading-edge
+    policies.} The agreement between the pit and aiming oracles
+    (\S\ref{sec:calib}, \S\ref{sec:aim}) checks the apparatus; it is not
+    evidence that real agents on other tasks share a boundary. Whether real
+    judges on richer, multi-decision tasks have a stable commit point --- the
+    quantity that would make $r$ predictive for them --- is untested;
+    \S\ref{sec:commit} shows one judge on one scene does.
+  \item \textbf{The first-passage curves assume independent per-frame
+    errors.} The final judge's residual errors cluster in the tile before the
+    window, so the curves in Fig.~\ref{fig:firstpassage} are an idealization of
+    the mechanism, and the 1--2\% per-frame rates they are evaluated at come
+    from earlier prompt versions, not from the final judge (whose far-field
+    rate on the battery was zero in 237 samples).
+  \item \textbf{The perception axis} mixes three Claude judges (run via a
+    subagent path, not a controlled API benchmark) with one real keyless local
+    VLM (\code{qwen2.5-vl:7b}), at $n = 10$ frames per condition --- large
+    enough for the cross-model pattern, too small for per-model significance
+    (Fisher exact $p = 0.14$--$0.35$). The open VLMs are weak/biased judges ---
+    Qwen is JUMP-biased (60\% clear, no fog effect) and
+    \code{llama3.2-vision:11b} is always-JUMP (contributes latency only, not a
+    perception point). A controlled, latency-timed multi-provider API sweep
+    still needs a key.
+  \item \textbf{The latency battery measures time-to-answer, not judgment,
+    at one arbitrary sim speed.} In the fast configuration the hosted models
+    answered WAIT on nearly every frame; a configuration that discriminates is
+    slower, so the measured $r$ values are lower bounds. The ``$4$--$47\times$''
+    multiples scale with $1/v$ and would halve at half the approach speed; $r$
+    is the portable number. Latencies are network- and hardware-dependent, but
+    they are real decision latencies, not stand-ins.
+  \item \textbf{No human baseline} --- the oracle stands in as the
+    perfect-judgment ceiling. Human psychophysics is future work.
+\end{itemize}
+
+\section{Future work}
+
+Extending the real-model sweep to more models, pit widths, and fog levels, and
+measuring the commit-point spread on a cue without a sharp onset (the quantity
+that would turn the step into a psychometric curve); a multi-provider latency
+panel (Gemini/GPT + more open VLMs); a human psychophysics arm; and
+multi-decision tasks, to test whether real judges have a stable enough commit
+point for $r$ to stay predictive beyond single reflexes.
+
+\section*{Reproducibility}
+
+Code, data, and figure-generating scripts are at
+\url{https://github.com/star7js/judge-vs-react}, under \code{eval/pit/}
+(analysis and sweeps) and \code{raycaster/} (the deterministic sim, including
+\code{--task aim} for the second task). The perception judgments
+(\code{perception\_judgments.jsonl}, 80 rows across 4 models), per-decision
+latencies (\code{vlm\_latency.jsonl}, 100 rows across 5 models), the oracle
+sweeps (default grid and the 1-tick \code{oracle\_edge\_sweep.jsonl}), the aim
+sweep, and the real-model sweep
+(\code{eval/pit/realmodel/}: driver, revised judge, 108-frame battery
+validation, and the 72-episode JSONL) are committed. The local-VLM paths
+(Ollama) and the Claude subagent judges run without an API key; the hosted-API
+latency numbers and the real-model sweep required one.
+
+\appendix
+\section{Control: action-repeat does not rescue}\label{app:repeat}
 
 Consulting the policy only every $k$ ticks and holding its last decision is a
 common cost lever. It adds up to $k{-}1$ ticks of polling delay on top of the
@@ -489,92 +654,10 @@ injected delay. Action-repeat is a compute/cost lever, not a latency fix.
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.66\linewidth]{fig_repeat.png}
-  \caption{S3 (control). Action-repeat does not rescue the transition; larger
-  $k$ fails at lower explicit $r$.}
+  \caption{Action-repeat does not rescue the transition; larger $k$ fails at
+  lower explicit $r$.}
+  \label{fig:repeat}
 \end{figure}
-
-\section{Discussion}
-
-The two failure axes have opposite fixes, and the framing makes the requirement
-quantitative. A perception failure wants a better model: no amount of extra
-time helps a judge that reports no distinguishable pit band under fog. A timing
-failure wants a slower clock: a model that commits at the window's leading edge
-is viable exactly when $r = L / T_{\text{window}} < \rstar \approx 1$, so a
-deployment can cross the boundary by pausing the world ($r \to 0$), slowing it
-(raising $T_{\text{window}}$), or cutting latency --- and the measured field
-needs 4--47$\times$ on the latter two. S5 is the direct demonstration: the same
-model, same judgment, clears 32/32 below the boundary and 0/26 above it, with
-nothing varied but $r$. The practical reading is that pausable or turn-based
-deployment converts every slow-but-accurate model we measured from failing to
-viable, with no change to the model; conversely, a real-time benchmark score is
-a product of judgment \emph{and} time regime, and ``VLMs are too slow to play
-games'' is partly a fact about the clock they are handed. S5's delay-rescued
-misjudgments add a sharper corollary: past the boundary, scores can even
-\emph{reward} bad perception --- the axes compensate, and an aggregate
-benchmark cannot tell.
-
-\section{Limitations}
-
-\begin{itemize}
-  \item \textbf{The real-model sweep (S5) is one model at one pit width, at
-    fog 0.} Its judge uses a revised prompt (the latency-battery prompt elicits
-    no JUMPs near the window from any hosted model) plus a two-consecutive-JUMP
-    commit rule, developed against and validated on the same 108 approach
-    frames the sweep draws from --- a judge tuned to this scene, and a
-    documented apparatus change, not the shipped default. Its $r$ axis is
-    engineered by injected delay with the model's judgment in the loop; the
-    model's own wall-clock latency ($\sim$5\,s/call at high effort) remains far
-    past $\rstar$, so a wall-clock-real sweep is still impossible for the
-    measured field --- that is the latency section's point, not a gap. The
-    anticipated \emph{noisy} psychometric curve did not materialize --- this
-    judge's decision variance is sub-tick --- so mapping a genuinely noisy
-    transition needs a weaker or more stochastic judge.
-  \item \textbf{The location $r \approx 1$ is definitional for leading-edge
-    policies.} The agreement between the pit and aiming oracles (S1, S4) checks
-    the apparatus; it is not evidence that real agents on other tasks share a
-    boundary. Whether real judges on richer, multi-decision tasks have a stable
-    commit point --- the quantity that would make $r$ predictive for them --- is
-    untested; S5 shows one judge on one scene does.
-  \item \textbf{The perception axis} mixes three Claude judges (run via a
-    subagent path, not a controlled API benchmark) with one real keyless local
-    VLM (\code{qwen2.5-vl:7b}), at $n = 10$ frames per condition --- large
-    enough for the cross-model pattern, too small for per-model significance
-    (Fisher exact $p = 0.14$--$0.35$). The open VLMs are weak/biased judges ---
-    Qwen is JUMP-biased (60\% clear, no fog effect) and
-    \code{llama3.2-vision:11b} is always-JUMP (contributes latency only, not a
-    perception point). A controlled, latency-timed multi-provider API sweep
-    still needs a key.
-  \item \textbf{The latency battery measures time-to-answer, not judgment.} In
-    the fast configuration the hosted models answered WAIT on nearly every
-    frame; a configuration that discriminates is slower, so the measured $r$
-    values are lower bounds. Latencies are network- and hardware-dependent, but
-    they are real decision latencies, not stand-ins.
-  \item \textbf{No human baseline} --- the oracle stands in as the
-    perfect-judgment ceiling. Human psychophysics is future work.
-\end{itemize}
-
-\section{Future work}
-
-Extending the S5 real-model sweep to more models, pit widths, and fog levels
-(and to a judge noisy enough to trace a genuinely smooth psychometric curve); a
-multi-provider latency panel (Gemini/GPT + more open VLMs); a human
-psychophysics arm; and multi-decision tasks, to test whether real judges have a
-stable enough commit point for $r$ to stay predictive beyond single reflexes.
-
-\section*{Reproducibility}
-
-Code, data, and figure-generating scripts are at
-\url{https://github.com/star7js/judge-vs-react}, under \code{eval/pit/}
-(analysis and sweeps) and \code{raycaster/} (the deterministic sim, including
-\code{--task aim} for the second task). The perception judgments
-(\code{perception\_judgments.jsonl}, 80 rows across 4 models), per-decision
-latencies (\code{vlm\_latency.jsonl}, 100 rows across 5 models), the oracle
-sweeps (default grid and the 1-tick \code{oracle\_edge\_sweep.jsonl}), the aim
-sweep, and the S5 real-model sweep
-(\code{eval/pit/realmodel/}: driver, revised judge, 108-frame battery
-validation, and the 72-episode JSONL) are committed. The local-VLM paths
-(Ollama) and the Claude subagent judges run without an API key; the hosted-API
-latency numbers and the S5 sweep required one.
 
 \begin{thebibliography}{9}
   \bibitem{omnigamearena} M. Lin et al. \emph{OmniGameArena: A Unified UE5

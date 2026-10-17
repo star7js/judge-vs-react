@@ -57,7 +57,7 @@ def main() -> None:
 
     ax.set_xlabel("r = speed * delay_ticks / W")
     ax.set_ylabel("cleared")
-    ax.set_title("S5: Sonnet 4.6 swept through the boundary (closed loop)")
+    ax.set_title("Sonnet 4.6 swept through the boundary (closed loop)")
     ax.legend(loc="center left", fontsize=8)
     fig.tight_layout()
     fig.savefig(OUT, dpi=150)

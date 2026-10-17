@@ -22,6 +22,13 @@ The judgment never changed; only the clock did.
   above it (`r* = 1.05`), with nothing varied but the delay. Past the boundary
   its only clears are *delay-rescued misjudgments* (early jumps pushed into
   the window by the delay): the two failure axes compensate.
+- **A per-frame judge is a first-passage process:** a 1% per-frame false
+  JUMP rate fires somewhere in the ~90-frame approach 60% of the time (84% at
+  2%); the two-consecutive-JUMP commit rule cuts that to ~1% / 3%. Per-frame
+  accuracy batteries cannot see this; evaluate per episode.
+- **The commit point is nearly deterministic:** 63 of 72 in-window decisions
+  land within one tick of each other across six seeds, so the real judge's
+  transition is a step, not a curve.
 - **Perception axis:** blind single-frame judgment at zero delay scales with
   model capability (Opus 90%, Sonnet 80%) and collapses to chance under fog,
   only in the models that read depth.
@@ -53,7 +60,7 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
 
-# tests (5 shell + 36 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (5 shell + 37 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

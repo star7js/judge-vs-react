@@ -143,6 +143,15 @@ every time, the *location* of its cliff follows from the arithmetic above. What
 the oracle can't show, and this does, is the flip itself happening to a real
 judge.)
 
+That second footnote turned out to be a result in its own right. A model that
+answers "jump" wrongly on 1% of frames looks like a 99%-accurate judge on any
+per-frame benchmark. But it gets asked on *every* frame of the approach, about
+90 of them, and the episode ends at the first "jump" it commits to. One
+percent per frame is a 60% chance of jumping into the pit somewhere on the way
+there; two percent is 84%. Requiring two consecutive "jump" answers drops that
+to about 1% and 3%. If you deploy a vision model as a per-frame trigger, you
+have to evaluate it per episode, not per frame, and you need a commit rule.
+
 The best part is what happens past the cliff. Nine episodes misjudged and
 committed early — a perception error, and at small delays they all die, landing
 short. But in a middle band of delays, **every one of them cleared**: the delay
