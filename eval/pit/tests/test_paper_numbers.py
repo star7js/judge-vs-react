@@ -5,6 +5,8 @@ before the paper silently drifts from the repo."""
 import os
 import statistics
 
+import pytest
+
 from eval.pit.analyze import load_jsonl, ratio, transition_fit, window_width
 
 DATA = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -180,9 +182,13 @@ def test_s5_realmodel_boundary_sweep():
     # delay-rescued; commit position 51x at x=8.94 and 12x at x=9.01.
     rows = _rows(os.path.join("..", "realmodel", "sonnet_boundary_sweep.jsonl"))
     assert len(rows) == 72
-    v, w = 0.07, 1.078
-    assert {round(window_width(r), 3) for r in rows} == {w}
-    r_of = lambda row: v * row["delay"] / w
+    assert {round(window_width(r), 3) for r in rows} == {1.078}
+    # Rows carry both the injected delay and the model's measured latency;
+    # the sweep's r axis is the injected delay, and the shared helper must be
+    # told so (it refuses to guess).
+    with pytest.raises(ValueError):
+        ratio(rows[0])
+    r_of = lambda row: ratio(row, source="delay")
 
     inw = [r for r in rows if r["in_window"] == 1]
     out = [r for r in rows if r["in_window"] == 0]

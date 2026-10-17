@@ -53,7 +53,7 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
 
-# tests (5 shell + 32 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (5 shell + 35 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

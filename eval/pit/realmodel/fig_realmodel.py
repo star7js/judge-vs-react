@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
-from eval.pit.analyze import transition_fit, _decreasing_logistic  # noqa: E402
+from eval.pit.analyze import ratio, transition_fit, _decreasing_logistic  # noqa: E402
 
 DATA = Path(__file__).parent / "sonnet_boundary_sweep.jsonl"
 OUT = REPO / "eval" / "pit" / "figures" / "fig_realmodel.png"
@@ -29,9 +29,9 @@ OUT = REPO / "eval" / "pit" / "figures" / "fig_realmodel.png"
 
 def main() -> None:
     rows = [json.loads(l) for l in open(DATA) if l.strip()]
-    W = rows[0]["w_hi"] - rows[0]["w_lo"]
-    v = rows[0]["speed"]
-    r = np.array([v * x["delay"] / W for x in rows])
+    # These rows carry both the injected delay and Sonnet's measured API
+    # latency; the sweep's r axis is the injected delay.
+    r = np.array([ratio(x, source="delay") for x in rows])
     y = np.array([x["cleared"] for x in rows], dtype=float)
     inw = np.array([x["in_window"] == 1 for x in rows])
 
