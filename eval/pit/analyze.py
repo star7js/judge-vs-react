@@ -285,6 +285,71 @@ def fig_timing(oracle_rows: list[dict], out_path: str, vlm_rows: list[dict] | No
     return {**fit, "excluded_empty_window_rows": len(excluded)}
 
 
+def edge_brackets(rows: list[dict], tick_s: float = DEFAULT_TICK_S) -> dict[int, dict]:
+    """Per-pit-width bracket of the clear/fail edge on a delay grid: the
+    largest r that still clears and the smallest r that fails, with the
+    delays they occur at. Rows with an empty window are skipped. Used on
+    the 1-tick `oracle_edge_sweep.jsonl` so every width brackets the edge
+    independently (the default grid only straddles it at width 2)."""
+    out: dict[int, dict] = {}
+    for pw in sorted({row["pit_width"] for row in rows}):
+        group = [row for row in rows if row["pit_width"] == pw and window_width(row) > 0]
+        clears = [row for row in group if row["cleared"]]
+        fails = [row for row in group if not row["cleared"]]
+        if not clears or not fails:
+            continue
+        last_clear = max(clears, key=lambda row: ratio(row, tick_s))
+        first_fail = min(fails, key=lambda row: ratio(row, tick_s))
+        out[pw] = {
+            "W": window_width(group[0]),
+            "last_clear_r": ratio(last_clear, tick_s), "last_clear_delay": last_clear["delay"],
+            "first_fail_r": ratio(first_fail, tick_s), "first_fail_delay": first_fail["delay"],
+        }
+    return out
+
+
+def fig_edge(rows: list[dict], out_path: str, tick_s: float = DEFAULT_TICK_S) -> dict:
+    """Calibration on a 1-tick delay grid: P(clear) vs r per pit width, so
+    each width's step edge is visible on its own, plus the pooled logistic
+    fit. Returns the fit and the per-width brackets from `edge_brackets`."""
+    usable = [row for row in rows if window_width(row) > 0]
+    r = np.array([ratio(row, tick_s) for row in usable])
+    y = np.array([row["cleared"] for row in usable], dtype=float)
+    fit = transition_fit(r, y)
+    brackets = edge_brackets(usable, tick_s)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for pw in sorted({row["pit_width"] for row in usable}):
+        group = sorted((row for row in usable if row["pit_width"] == pw), key=lambda row: row["delay"])
+        rr = [ratio(row, tick_s) for row in group]
+        yy = [row["cleared"] for row in group]
+        color = _PIT_WIDTH_COLORS.get(pw, "gray")
+        ax.scatter(rr, yy, s=18, color=color, alpha=0.85,
+                   label=f"pit_width={pw} (W={window_width(group[0]):.2f}, 1-tick delay steps)")
+        # The edge lies somewhere between the last clear and the first fail;
+        # shade exactly that bracket rather than drawing a step through it.
+        if pw in brackets:
+            b = brackets[pw]
+            ax.axvspan(b["last_clear_r"], b["first_fail_r"], color=color, alpha=0.18, lw=0)
+    r_curve = np.linspace(0, 2.0, 400)
+    ax.plot(r_curve, _decreasing_logistic(r_curve, fit["r_star"], fit["slope"]),
+            color="black", lw=1.5, ls="--", label=f"pooled logistic fit, r* = {fit['r_star']:.2f}")
+    ax.set_xlim(0, 2.0)
+    ax.set_xlabel("r = speed * delay_ticks / W")
+    ax.set_ylabel("cleared")
+    ax.set_title("Oracle calibration on a 1-tick delay grid\n"
+                 "(shaded: each width's bracket between its last clear and first fail)")
+    ax.legend(loc="center right", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+    print(f"[fig_edge] r_star={fit['r_star']:.4f} (n={len(usable)}); brackets: " + "; ".join(
+        f"pw{pw} [{b['last_clear_r']:.3f} (D={b['last_clear_delay']}), "
+        f"{b['first_fail_r']:.3f} (D={b['first_fail_delay']})]" for pw, b in brackets.items()))
+    return {**fit, "n": len(usable), "brackets": brackets}
+
+
 def fig_aim(aim_rows: list[dict], out_path: str, tick_s: float = DEFAULT_TICK_S) -> dict:
     """Generality test: the same r = travel/window collapse, on a *different*
     task. The sweeping-aim episodes emit the pit's schema with speed<-omega and
@@ -575,11 +640,11 @@ def fig_perception(rows: list[dict], out_path: str) -> dict:
 
 def fig_latency(latency_rows: list[dict], out_path: str, *,
                 w_lo: float = 8.921, w_hi: float = 9.999, speed: float = 0.07,
-                tick_s: float = DEFAULT_TICK_S, r_star: float = 1.1686) -> dict:
+                tick_s: float = DEFAULT_TICK_S, r_star: float = 1.0416) -> dict:
     """Real local-VLM latency vs. the task's time budget. A single decision's
     dimensionless cost is exactly r = L / T_window, where the action window is
     open for T_window = (w_hi - w_lo)/speed * tick_s seconds. The fitted collapse
-    r* (from fig_timing) sets the *maximum tolerable* latency r**T_window; any L
+    r* (from fig_edge, the 1-tick calibration grid) sets the *maximum tolerable* latency r**T_window; any L
     above it fails in real time. `latency_rows` come from `vlm_latency.jsonl`
     (per-decision `latency_s` measured against a local Ollama vision model)."""
     t_window = (w_hi - w_lo) / speed * tick_s   # seconds the window is open
@@ -656,6 +721,7 @@ def main() -> None:
     parser.add_argument("--perception", default="eval/pit/data/perception_judgments.jsonl")
     parser.add_argument("--latency", default="eval/pit/data/vlm_latency.jsonl")
     parser.add_argument("--aim", default="eval/pit/data/aim_sweep.jsonl")
+    parser.add_argument("--edge", default="eval/pit/data/oracle_edge_sweep.jsonl")
     parser.add_argument("--out", default=DEFAULT_OUT)
     parser.add_argument("--repeat-sweep", default=DEFAULT_REPEAT_SWEEP)
     parser.add_argument("--binary", default=os.environ.get("KEEN_BIN", "raycaster/build/keen-raycaster"))
@@ -673,6 +739,11 @@ def main() -> None:
     vlm_rows = load_jsonl(args.vlm)
 
     fig_timing(oracle_rows, out_dir / "fig_timing.png", vlm_rows=vlm_rows)
+    edge_rows = load_jsonl(args.edge)
+    if edge_rows:
+        fig_edge(edge_rows, out_dir / "fig_edge.png")
+    else:
+        print(f"[fig_edge] skipped -- no data at {args.edge!r} (run eval.pit.run_edge_sweep)")
     fig_dissociation(vlm_rows, out_dir / "fig_dissociation.png")
     fig_flip(oracle_rows, out_dir / "fig_flip.png")
 

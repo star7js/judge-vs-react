@@ -31,8 +31,8 @@ The judgment never changed; only the clock did.
   failing to viable.
 - **Calibration, not a law:** `r = v·D / W` is the coordinate in which "a
   leading-edge policy clears iff `r < 1`" is exact by construction. Oracle
-  sweeps on the pit (`r* = 1.17`, bracketed between 1.04 and 1.30 by the delay
-  grid; 21 informative configurations) and on a rotational aiming task
+  sweeps on the pit (`r* = 1.04` on a 1-tick delay grid; every width brackets
+  the edge within one tick) and on a rotational aiming task
   (`r* = 0.98`) confirm the apparatus reproduces it.
 - **Control:** action-repeat adds polling delay and shifts the transition to
   lower explicit `r`; it is a cost lever, not a latency fix.
@@ -53,7 +53,7 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
 
-# tests (5 shell + 35 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (5 shell + 36 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \
@@ -62,7 +62,8 @@ KEEN_BIN=raycaster/build/keen-raycaster \
 
 The local-VLM paths (Ollama) and the blind Claude judges run without an API
 key; only the hosted-API latency numbers required one. Sweeps:
-`eval/pit/run_oracle_sweep.py`, `run_aim_sweep.py`, `run_vlm.py`.
+`eval/pit/run_oracle_sweep.py`, `run_edge_sweep.py` (1-tick calibration grid),
+`run_aim_sweep.py`, `run_vlm.py`.
 
 ## Layout
 

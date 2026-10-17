@@ -67,6 +67,32 @@ def test_s1_step_edge_bracket():
     assert all(not r["cleared"] for r in rows if r["pit_width"] == 3 and r["delay"] > 0)
 
 
+def test_s1_edge_sweep_brackets_every_width():
+    # 1-tick delay grid, widths 1-3, one seed, fog 0: 123 rows. Paper: the
+    # edge is bracketed within a tick at every width -- width 1 [1.01, 1.04],
+    # width 2 [1.04, 1.10], width 3 [0.89, 1.77] (its window is ~1.1 ticks
+    # wide) -- and the pooled logistic fit gives r* = 1.04.
+    from eval.pit.analyze import edge_brackets
+    rows = _rows("oracle_edge_sweep.jsonl")
+    assert len(rows) == 123
+    assert {r["pit_width"] for r in rows} == {1, 2, 3}
+    assert {r["fog"] for r in rows} == {0.0} and {r["seed"] for r in rows} == {0}
+    b = edge_brackets(rows)
+    got = {pw: (round(v["last_clear_r"], 2), round(v["first_fail_r"], 2)) for pw, v in b.items()}
+    assert got == {1: (1.01, 1.04), 2: (1.04, 1.10), 3: (0.89, 1.77)}
+    assert {pw: (v["last_clear_delay"], v["first_fail_delay"]) for pw, v in b.items()} == {
+        1: (30, 31), 2: (16, 17), 3: (1, 2),
+    }
+    # Each width is a clean step: every delay below the edge clears, every
+    # delay at or above it fails.
+    for pw in (1, 2, 3):
+        g = sorted((r for r in rows if r["pit_width"] == pw), key=lambda r: r["delay"])
+        edge = b[pw]["first_fail_delay"]
+        assert all(r["cleared"] == (r["delay"] < edge) for r in g), pw
+    _, fit = _fit(rows)
+    assert round(fit["r_star"], 2) == 1.04
+
+
 def test_s2_same_decision_flip():
     # Unique configs, oracle-correct decisions only: 3/3 clear at delay 0;
     # of the 9 configs past r = 1, only the r = 1.04 same-tick case clears,

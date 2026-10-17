@@ -15,8 +15,8 @@ from the sim's own dynamics, and injects a control delay `D` so that lateness
 varies independently of judgment. In the dimensionless coordinate `r = v·D / W`
 (distance travelled during the delay over window width), a policy that fires at
 the window's leading edge clears iff `r < 1` by construction; oracle sweeps on
-the pit (`r* = 1.17`, bracketed by the delay grid between 1.04 and 1.30) and on
-a second rotational-aiming task (`r* = 0.98`) confirm that the apparatus
+the pit (`r* = 1.04`, the edge bracketed within one tick of delay at every pit
+width) and on a second rotational-aiming task (`r* = 0.98`) confirm that the apparatus
 reproduces this, and serve as calibration rather than as an empirical law. The
 main result is a **real model swept through that boundary**: a closed-loop
 Sonnet 4.6 agent, judging every frame itself, clears **32/32** in-window
@@ -60,8 +60,8 @@ the boundary are *delay-rescued misjudgments*. Around it:
 
 - **Calibration (S1, S2, S4).** For a policy that fires at the window's leading
   edge, clearing iff `r < 1` is arithmetic, not a discovery. Oracle sweeps on
-  the pit (S1; `r* = 1.17`, bracketed between 1.04 and 1.30 by the delay grid)
-  and on a rotational aiming task (S4; `r* = 0.98`) check that the sim's
+  the pit (S1; `r* = 1.04` on a 1-tick delay grid that brackets the edge at
+  every width) and on a rotational aiming task (S4; `r* = 0.98`) check that the sim's
   dynamics, the in-window label, and `r` reproduce it without leaking
   tolerance, and the oracle's same-decision flip (S2) previews S5 on a perfect
   judge.
@@ -152,17 +152,25 @@ apparatus reproduces this. It does. The default grid (4 pit widths × 7 delays,
 replicate each 60× across fog and seed, which the oracle ignores (every
 replicate is identical), and the 7 configurations at pit width 4 have an empty
 window (`W ≤ 0`, unclearable) and are excluded. On the remaining 21
-configurations the pooled logistic fit gives **`r* = 1.17`**. Because the delay
-grid is discrete, the data bracket the edge rather than pinpoint it: the last
-clear is at `r = 1.04` and the first failure at `r = 1.30`, both at pit width 2,
-and 1.17 is the logistic midpoint of that gap. The other widths do not straddle
-the edge within this grid — width 1 (`W = 2.08`) never exceeds `r = 0.81` and
-always clears, and width 3 (`W = 0.08`) is already at `r = 3.5` at the first
-nonzero delay and always fails — so the edge is located at one width and the
-others are consistent with it. The clear at `r = 1.04` is physical: a jump that
-fires on the same tick can take off from just past the near edge, extending
-tolerance a fraction of a tick beyond the nominal window. The transition is a
-step because the oracle is deterministic.
+configurations the pooled logistic fit gives `r* = 1.17`, but that number is a
+grid artifact: the last clear is at `r = 1.04` and the first failure at
+`r = 1.30`, both at pit width 2, and 1.17 is the logistic midpoint of a 4-tick
+gap. The other widths do not straddle the edge within this grid — width 1
+(`W = 2.08`) never exceeds `r = 0.81` and always clears, and width 3
+(`W = 0.08`) is already at `r = 3.5` at the first nonzero delay and always
+fails.
+
+A 1-tick delay grid (`D ∈ {0, …, 40}`, widths 1–3, one seed, fog 0; 123
+configurations; Fig. `fig_edge.png`) removes the artifact. Each width brackets
+the edge within a single tick of delay: width 1 between `r = 1.01` (`D = 30`)
+and 1.04 (`D = 31`), width 2 between 1.04 (`D = 16`) and 1.10 (`D = 17`), and
+width 3 between 0.89 (`D = 1`) and 1.77 (`D = 2`), its window being only 1.1
+ticks wide. Every width is a clean step (every delay below its edge clears,
+every delay at or above it fails), and the pooled logistic fit gives
+**`r* = 1.04`**. This is the calibration number used below. The clears just
+past `r = 1` are physical: a jump that fires on the same tick can take off from
+just past the near edge, extending tolerance a fraction of a tick beyond the
+nominal window. The transition is a step because the oracle is deterministic.
 
 ### 4.2 Same-decision flip on the oracle (S2) — Fig. `fig_flip.png`
 
@@ -192,7 +200,7 @@ kinematics and the label reproduces it. It does: across 205 unique
 configurations at five target widths (4.6°–13.8°; one seed, the aim oracle
 being deterministic) the pooled logistic fit gives `r* = 0.98`, and at every
 width the last hit lies at `r = 0.87–0.96` and the first miss at exactly
-`r = 1.00`. The offset from the pit's 1.17 is the oracles' firing phase: the
+`r = 1.00`. The offset from the pit's 1.04 is the oracles' firing phase: the
 pit's takeoff can extend just *past* the near edge (a hair above 1), while the
 aim fires just *inside* the near edge, forfeiting a sub-tick of tolerance (a
 hair below 1). Two tasks agreeing on `r ≈ 1` shows that `r` is the right
@@ -235,9 +243,10 @@ tick after the window opens (`w_lo = 8.92`).
 
 **The boundary holds for a real judge.** Episodes whose decision lands in the
 window clear **32/32 through `r = 0.97`**, 4/5 at `r = 1.04`, and **0/26 from
-`r = 1.10` on**; the same logistic fit as S1 gives `r* = 1.05`, inside the
-oracle's bracketing gap `[1.04, 1.30]` and at its last-clear edge (the same-tick
-takeoff tolerance of S1). The transition is nearly as sharp as the oracle's, for
+`r = 1.10` on**; the same logistic fit as S1 gives `r* = 1.05`, coinciding with
+the oracle's width-2 bracket `[1.04, 1.10]` on the 1-tick grid: the real
+judge's edge sits where the perfect judge's does, same-tick tolerance included.
+The transition is nearly as sharp as the oracle's, for
 an unplanned reason: the model's commit position is almost deterministic — 51/72
 episodes commit at `x = 8.94` and 12 at `x = 9.01`, straddling the cue's
 pixel-level onset (the model begins answering "black" one tick before the black
@@ -311,7 +320,7 @@ VLM version.
 Because the decision cost is exactly `r = L / T_window` — where the window is
 open for `T_window = (W/v)·tick = 257 ms` at `pit_width=2` (`W=1.078`,
 `v=0.07`, tick = 1/60 s) — the `r*` boundary sets a **maximum tolerable decision
-latency of `r*·T_window ≈ 300 ms`**. We timed five vision models on the
+latency of `r*·T_window ≈ 270 ms`**. We timed five vision models on the
 identical 20-frame decision battery, in each model's *fastest* single-call
 configuration (n=20 each):
 
@@ -323,7 +332,7 @@ configuration (n=20 each):
 | Qwen2.5-VL 7B (local) | 7.9 s | ≈ 31 |
 | llama3.2-vision 11B (local) | 12.1 s | ≈ 47 |
 
-**None clear the 300 ms budget.** Even the *fastest hosted frontier model* is
+**None clear the 270 ms budget.** Even the *fastest hosted frontier model* is
 ~4× too slow, and local open VLMs are 30–47×. This is the concrete version of
 "VLMs are too slow to play games": the whole measured field would need the world
 **paused, or slowed 4–47×**, to act inside the window — and the gap is a property
@@ -390,12 +399,6 @@ benchmark cannot tell.
   gap. The anticipated *noisy* psychometric curve did not materialize — this
   judge's decision variance is sub-tick — so mapping a genuinely noisy
   transition needs a weaker or more stochastic judge.
-- **The oracle calibration has 21 informative configurations and brackets the
-  edge at one pit width.** Within the default delay grid, width 1 never reaches
-  the edge and width 3 is past it at the first nonzero delay; only width 2 has
-  clears and failures on both sides. The 1680-row file is 60× replication over
-  fog and seed that the oracle ignores. A finer, width-adapted delay grid would
-  bracket the edge independently at each width.
 - **The location `r ≈ 1` is definitional for leading-edge policies.** The
   agreement between the pit and aiming oracles (S1, S4) checks the apparatus;
   it is not evidence that real agents on other tasks share a boundary. Whether
@@ -421,19 +424,19 @@ benchmark cannot tell.
 ## 7. Future work
 Extending the §4.4 real-model sweep to more models, pit widths, and fog levels
 (and to a judge noisy enough to trace a genuinely smooth psychometric curve); a
-width-adapted oracle grid that brackets the edge at every width; a
 multi-provider latency panel (Gemini/GPT + more open VLMs); a human
 psychophysics arm; and multi-decision tasks, to test whether real judges have a
 stable enough commit point for `r` to stay predictive beyond single reflexes.
 
 ## Figures
-- `../eval/pit/figures/fig_timing.png` — S1, oracle calibration (r*=1.17; 21 unique configurations, edge bracketed between 1.04 and 1.30 at pit width 2).
+- `../eval/pit/figures/fig_edge.png` — S1, oracle calibration on a 1-tick delay grid (r*=1.04; 123 configurations, each width brackets the edge within one tick: width 1 [1.01, 1.04], width 2 [1.04, 1.10], width 3 [0.89, 1.77]).
+- `../eval/pit/figures/fig_timing.png` — the default oracle grid (r*=1.17 is the midpoint of a 4-tick gap at pit width 2; superseded by the 1-tick grid).
 - `../eval/pit/figures/fig_flip.png` — S2, oracle same-decision flip (3/3 at D=0; of 9 configs past r=1 only the r=1.04 same-tick case clears, 0/8 at r≥1.30).
 - `../eval/pit/figures/fig_repeat.png` — S3, action-repeat control.
 - `../eval/pit/figures/fig_aim.png` — S4, the same calibration on a rotational aiming task (r*=0.98, 205 configurations, 5 target widths).
 - `../eval/pit/figures/fig_realmodel.png` — S5, Sonnet 4.6 swept through the boundary in closed loop (r*=1.05; 32/32 below, 0/26 above; early decisions fail below the boundary and are the only survivors past it; data + driver in `../eval/pit/realmodel/`).
 - `../eval/pit/figures/fig_perception.png` — perception axis (4 blind judges: Haiku/Sonnet/Opus + local Qwen2.5-VL; Opus 90% clear → 50% foggy; the fog collapse appears only in the depth-reading models).
-- `../eval/pit/figures/fig_latency.png` — real per-model decision latency vs. the time budget, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈300ms max-tolerable budget.
+- `../eval/pit/figures/fig_latency.png` — real per-model decision latency vs. the time budget, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms max-tolerable budget.
 - `../eval/pit/figures/fig_dissociation.png` — placeholder pending multi-model VLM runs.
 
 Perception data + method: `../eval/pit/data/perception_judgments.jsonl` (80
