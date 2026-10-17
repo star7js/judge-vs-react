@@ -50,11 +50,11 @@ inside it exactly when `r < 1`. That isn't a discovery, it's arithmetic, and it
 is the reason `r` is the right unit: it turns "how slow is too slow" into a
 number you can compare across any task with a window. The perfect-judgment
 oracle exists to check that the simulator honours that arithmetic with no hidden
-slack. It does: sweeping delays across pit widths, the oracle's last clear is at
-`r = 1.04` and its first fall at `r = 1.30`, with the fitted edge at **r ≈ 1.17**
-(the hair above 1 is a same-tick takeoff tolerance).
+slack. It does: sweeping the delay one tick at a time across three pit widths,
+every width flips from clearing to falling within a single tick, and the fitted
+edge lands at **r ≈ 1.04** (the hair above 1 is a same-tick takeoff tolerance).
 
-![timing collapse](../eval/pit/figures/fig_timing.png)
+![timing collapse](../eval/pit/figures/fig_edge.png)
 
 And holding your last decision across frames — the usual "just act faster" hack —
 doesn't rescue it. A stale "don't jump" still walks you in; if anything it fails
@@ -92,7 +92,7 @@ late — and now we can tell which.
 
 Because `r = latency ÷ window`, and the window here is open for only about **257
 milliseconds**, the boundary sets a hard budget: your decision has to arrive in
-under ~**300 ms**. So we measured how long a real decision actually takes, for five
+under ~**270 ms**. So we measured how long a real decision actually takes, for five
 vision models on the same frames.
 
 ![decision latency vs budget](../eval/pit/figures/fig_latency.png)

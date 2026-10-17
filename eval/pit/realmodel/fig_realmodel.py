@@ -52,8 +52,8 @@ def main() -> None:
             color="black", lw=2, label="logistic fit (in-window only)")
     ax.axvline(fit["r_star"], color="black", ls="--", lw=1,
                label=f"r* = {fit['r_star']:.2f}")
-    ax.axvline(1.17, color="gray", ls=":", lw=1.5,
-               label="oracle r* = 1.17 (S1)")
+    ax.axvline(1.04, color="gray", ls=":", lw=1.5,
+               label="oracle r* = 1.04 (1-tick calibration grid)")
 
     ax.set_xlabel("r = speed * delay_ticks / W")
     ax.set_ylabel("cleared")
