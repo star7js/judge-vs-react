@@ -5,9 +5,11 @@ Consumes the oracle sweep (`eval/pit/data/oracle_sweep.jsonl`, from
 (`eval/pit/data/vlm_runs.jsonl`, from `eval.pit.run_vlm`).
 
 Core fits:
-- `ratio(row, tick_s)` -- the dimensionless timing ratio
+- `ratio(row, tick_s, source)` -- the dimensionless timing ratio
   `r = speed * delay_ticks / W` (`W = w_hi - w_lo`), the analytic takeoff
-  window's width. `W <= 0` is a degenerate/empty window (e.g. the
+  window's width. `source` picks the injected `delay` or the measured
+  `L_mean_s`; it must be given for rows that carry both (the S5 sweep).
+  `W <= 0` is a degenerate/empty window (e.g. the
   `pit_width=4` oracle configs, which the C sim marks with `w_lo=10.0,
   w_hi=-1.0`: no takeoff position clears, so the pit is unclearable) --
   `ratio()` returns `float("inf")` for those rows rather than dividing by a
@@ -78,15 +80,29 @@ def window_width(row: dict) -> float:
     return row["w_hi"] - row["w_lo"]
 
 
-def ratio(row: dict, tick_s: float = DEFAULT_TICK_S) -> float:
+def _usable_latency(row: dict) -> float | None:
+    """A row's measured decision latency `L_mean_s` (seconds), or None if
+    the field is absent or NaN (run_vlm writes NaN when no call was timed)."""
+    l_mean_s = row.get("L_mean_s")
+    if l_mean_s is None or (isinstance(l_mean_s, float) and math.isnan(l_mean_s)):
+        return None
+    return l_mean_s
+
+
+def ratio(row: dict, tick_s: float = DEFAULT_TICK_S, source: str | None = None) -> float:
     """Dimensionless timing ratio `r = speed * delay_ticks / W`.
 
-    `delay_ticks` comes from the oracle's `delay` field (already in ticks)
-    if present and usable; otherwise falls back to a VLM row's `L_mean_s`
-    (measured decision latency, in seconds), converted to ticks via
-    `tick_s`. A VLM row prefers real measured latency (`L_mean_s`) over its
-    config `delay` (which is normally 0 for VLM runs) when both are
-    present, since `L_mean_s` is the quantity actually being studied there.
+    `delay_ticks` is taken from one of two row fields, chosen by `source`:
+    - `"delay"`: the injected control delay (`delay`, already in ticks).
+      Oracle, aim, and S5 real-model sweep rows.
+    - `"latency"`: the measured decision latency (`L_mean_s`, seconds),
+      converted to ticks via `tick_s`. Delay-0 VLM episodes from run_vlm,
+      where the model's own latency is the quantity being placed on the axis.
+    - `None` (default): whichever of the two the row has. If the row carries
+      BOTH a `delay` and a usable `L_mean_s` the choice is ambiguous and this
+      raises, because the two can differ by an order of magnitude: the S5
+      sweep rows record Sonnet's ~4.7 s API latency alongside the injected
+      delay that actually defines their `r`. Pass `source` explicitly.
 
     Returns `float("inf")` when `W <= 0` (empty/degenerate window --
     unclearable regardless of timing) rather than dividing by a
@@ -96,15 +112,27 @@ def ratio(row: dict, tick_s: float = DEFAULT_TICK_S) -> float:
     if w <= 0:
         return float("inf")
 
-    l_mean_s = row.get("L_mean_s")
-    if l_mean_s is not None and not (isinstance(l_mean_s, float) and math.isnan(l_mean_s)):
-        delay_ticks = l_mean_s / tick_s
-    elif row.get("delay") is not None:
+    latency_s = _usable_latency(row)
+    has_delay = row.get("delay") is not None
+
+    if source is None:
+        if has_delay and latency_s is not None:
+            raise ValueError(
+                "ratio(): row has both 'delay' and a usable 'L_mean_s'; pass "
+                "source='delay' (injected delay) or source='latency' (measured)"
+            )
+        source = "latency" if latency_s is not None else "delay"
+
+    if source == "delay":
+        if not has_delay:
+            raise KeyError("ratio(source='delay'): row has no 'delay' field")
         delay_ticks = row["delay"]
+    elif source == "latency":
+        if latency_s is None:
+            raise KeyError("ratio(source='latency'): row has no usable 'L_mean_s' field")
+        delay_ticks = latency_s / tick_s
     else:
-        raise KeyError(
-            "ratio(): row has neither a usable 'L_mean_s' nor a 'delay' field"
-        )
+        raise ValueError(f"ratio(): source must be 'delay', 'latency', or None, got {source!r}")
 
     return row["speed"] * delay_ticks / w
 
@@ -230,7 +258,7 @@ def fig_timing(oracle_rows: list[dict], out_path: str, vlm_rows: list[dict] | No
         from collections import defaultdict
         by_model = defaultdict(list)
         for row in vlm_rows:
-            rr = ratio(row, tick_s)
+            rr = ratio(row, tick_s, source="latency")
             if np.isfinite(rr):
                 by_model[row.get("model", "model")].append(rr)
         for i, (name, rs) in enumerate(sorted(by_model.items())):
@@ -331,7 +359,7 @@ def fig_dissociation(vlm_rows: list[dict] | None, out_path: str,
     fogs = sorted({row["fog"] for row in vlm_rows})
     for fog in fogs:
         rows = [row for row in vlm_rows if row["fog"] == fog]
-        r = np.array([ratio(row, tick_s) for row in rows])
+        r = np.array([ratio(row, tick_s, source="latency") for row in rows])
         y = np.array([row["cleared"] for row in rows], dtype=float)
         order = np.argsort(r)
         ax.plot(r[order], y[order], marker="o", label=f"fog={fog}")

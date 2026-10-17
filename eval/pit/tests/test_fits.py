@@ -1,6 +1,7 @@
 """Fit-recovery tests for eval.pit.analyze, using only synthetic logistic
 data (never fit against the deterministic oracle sweep itself)."""
 import numpy as np
+import pytest
 
 from eval.pit.analyze import psychometric_fit, ratio, transition_fit
 
@@ -43,13 +44,42 @@ def test_ratio_oracle_uses_delay_in_ticks_directly():
 
 
 def test_ratio_vlm_converts_L_mean_s_via_tick_s():
-    row = {"speed": 0.07, "delay": 0, "L_mean_s": 10 / 60, "w_lo": 9.0, "w_hi": 9.7}
+    row = {"speed": 0.07, "L_mean_s": 10 / 60, "w_lo": 9.0, "w_hi": 9.7}
     # delay_ticks = L_mean_s / (1/60) = 10 ticks -> same r as the oracle case above
     assert abs(ratio(row, tick_s=1 / 60) - 1.0) < 1e-9
 
 
-def test_ratio_prefers_L_mean_s_over_stale_delay_when_both_present():
-    # VLM rows carry a config "delay" (usually 0) alongside a real measured
-    # L_mean_s; the measured latency should win.
+def test_ratio_refuses_to_guess_when_both_delay_and_latency_present():
+    # VLM rows carry a config "delay" alongside a measured L_mean_s, and the
+    # S5 sweep rows carry a real injected delay alongside Sonnet's ~4.7 s API
+    # latency. The two give r values an order of magnitude apart, so the
+    # caller has to say which one defines the axis.
     row = {"speed": 0.07, "delay": 0, "L_mean_s": 10 / 60, "w_lo": 9.0, "w_hi": 9.7}
+    with pytest.raises(ValueError, match="source="):
+        ratio(row)
+
+
+def test_ratio_source_selects_field_explicitly():
+    # S5-shaped row: injected delay 10 ticks (r = 1.0) and a measured
+    # latency of 100 ticks (r = 10.0). Each source gives its own answer.
+    row = {"speed": 0.07, "delay": 10, "L_mean_s": 100 / 60, "w_lo": 9.0, "w_hi": 9.7}
+    assert abs(ratio(row, source="delay") - 1.0) < 1e-9
+    assert abs(ratio(row, source="latency") - 10.0) < 1e-9
+
+
+def test_ratio_source_missing_field_raises():
+    oracle = {"speed": 0.07, "delay": 10, "w_lo": 9.0, "w_hi": 9.7}
+    with pytest.raises(KeyError):
+        ratio(oracle, source="latency")
+    vlm = {"speed": 0.07, "L_mean_s": 10 / 60, "w_lo": 9.0, "w_hi": 9.7}
+    with pytest.raises(KeyError):
+        ratio(vlm, source="delay")
+    with pytest.raises(ValueError):
+        ratio(oracle, source="wallclock")
+
+
+def test_ratio_nan_latency_is_not_usable():
+    # run_vlm writes L_mean_s = NaN when no call was timed; that must not
+    # count as a latency, so a NaN alongside a delay is unambiguous.
+    row = {"speed": 0.07, "delay": 10, "L_mean_s": float("nan"), "w_lo": 9.0, "w_hi": 9.7}
     assert abs(ratio(row) - 1.0) < 1e-9

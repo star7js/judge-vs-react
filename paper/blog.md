@@ -39,28 +39,33 @@ knob is the trick — it lets us vary *lateness* completely separately from
 *judgment quality*. A perfect-judgment "oracle" that knows the true distance
 still fails if its action is applied too late.
 
-## The twist: it's not that the model judges wrong
-
-Watch the two panels again. The decision is identical — same position, same "jump
-now." Paused, it clears with probability **1.00**. Once the delay pushes the
-action past the window, the *same decision* clears only **0.11** of the time. The
-judgment never changed. Only the timing did.
-
 ## The number
 
-Put the delay sweep together and the failure has a sharp boundary. Define
+Define
 
 > **r = how far you travel while thinking ÷ how wide the safe-jump window is.**
 
-Below `r ≈ 1` you clear; above it you fall. Across pits of different widths — each
-with a different window — the clear/fail outcomes **collapse onto that one ratio**,
-with the transition at **r ≈ 1.17**.
+If you decide to jump the moment the window opens, your delayed jump lands
+inside it exactly when `r < 1`. That isn't a discovery, it's arithmetic, and it
+is the reason `r` is the right unit: it turns "how slow is too slow" into a
+number you can compare across any task with a window. The perfect-judgment
+oracle exists to check that the simulator honours that arithmetic with no hidden
+slack. It does: sweeping delays across pit widths, the oracle's last clear is at
+`r = 1.04` and its first fall at `r = 1.30`, with the fitted edge at **r ≈ 1.17**
+(the hair above 1 is a same-tick takeoff tolerance).
 
 ![timing collapse](../eval/pit/figures/fig_timing.png)
 
 And holding your last decision across frames — the usual "just act faster" hack —
 doesn't rescue it. A stale "don't jump" still walks you in; if anything it fails
 slightly *earlier*, because the decision lands staler.
+
+## The twist: it's not that the model judges wrong
+
+Watch the two panels again. The decision is identical — same position, same "jump
+now." The only thing that differs is how long after the decision the jump
+actually fires. That is the experiment in the next section, with a real model
+making the call.
 
 ## But can it even see the jump?
 
@@ -99,17 +104,20 @@ slow. Every real model we tried lands on the failing side of the line, in its
 
 ## Is it just the pit?
 
-Fair question — one toy task proves nothing. So we built a second, deliberately
-*different* one: instead of jumping a gap, you spin in place and have to **fire
-the instant your crosshair sweeps across a target**. Different motion (rotation,
-not walking), different action (shoot, not jump) — but the same shape: act inside
-a window, and a delay drags you past it.
+Fair question. So we built a second, deliberately *different* task: instead of
+jumping a gap, you spin in place and have to **fire the instant your crosshair
+sweeps across a target**. Different motion (rotation, not walking), different
+action (shoot, not jump) — but the same shape: act inside a window, and a delay
+drags you past it.
 
-![generality — the same law on an aiming task](../eval/pit/figures/fig_aim.png)
+![generality — the same boundary on an aiming task](../eval/pit/figures/fig_aim.png)
 
-Same collapse. Same boundary, at **r ≈ 1** again. When two tasks that share
-nothing but "act in a window" land on the same number, it stops being a quirk of
-the pit and starts being a *law* about timing.
+Same boundary, at **r ≈ 1** again. To be clear about what that shows: it is
+arithmetic that any fire-at-the-leading-edge policy lands at `r ≈ 1`, so two
+tasks agreeing on it tells you `r` is the right unit for both and that neither
+simulator leaks tolerance. It is a calibration, not a law of nature. The
+question with real content is where an actual model's decision falls, and
+whether its outcome flips there.
 
 ## Flying a real model through the boundary
 
@@ -122,12 +130,18 @@ the boundary — with the model's own judgment, and its own mistakes, in the loo
 ![a real model through the boundary](../eval/pit/figures/fig_realmodel.png)
 
 Below the boundary it clears **32/32**. Above it, **0/26**. The fit lands at
-**r\* = 1.05** — the oracle's cliff, felt by a real model. (Two honest
-footnotes: it needed a rewritten prompt to judge close-range frames at all — up
-close the pit stops looking like a "band" and becomes the whole bottom of the
-screen — and a rule that it must say JUMP on two consecutive frames, because even a
-rare hallucinated JUMP — a percent or two per frame in our early prompt tests —
-fires almost surely *somewhere* over 90 frames of approach.)
+**r\* = 1.05**. Same model, same frame-by-frame decisions, and the only thing
+that changed between clearing every pit and falling into every one was when the
+jump fired. (Two honest footnotes: it needed a rewritten prompt to judge
+close-range frames at all — up close the pit stops looking like a "band" and
+becomes the whole bottom of the screen — and a rule that it must say JUMP on two
+consecutive frames, because even a rare hallucinated JUMP — a percent or two per
+frame in our early prompt tests — fires almost surely *somewhere* over 90 frames
+of approach. That prompt was tuned on this exact scene; we don't claim it
+transfers. And because the model turned out to commit at almost the same spot
+every time, the *location* of its cliff follows from the arithmetic above. What
+the oracle can't show, and this does, is the flip itself happening to a real
+judge.)
 
 The best part is what happens past the cliff. Nine episodes misjudged and
 committed early — a perception error, and at small delays they all die, landing
