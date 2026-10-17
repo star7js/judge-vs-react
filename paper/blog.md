@@ -168,6 +168,17 @@ survivors are the episodes that judged *wrong*. The two failure axes don't just
 separate — on opposite sides of the line they cancel, and an aggregate score
 can't see it happening.
 
+Then we fogged the world and ran the same 72 episodes again. The judge got
+worse in exactly the way you'd hope to measure: instead of committing at the
+same spot every time, it spread over five frames, and jumped early in 35
+episodes instead of 9. The timing cliff didn't move. And here's the kicker:
+**both runs cleared exactly 41 of 72.** Clear weather: 36 right calls plus 5
+lucky early ones. Fog: 19 right calls plus 22 lucky early ones. Same score,
+completely different agent. If all you had was the score, you'd call them
+equal.
+
+![the same judge, clear vs fog](../eval/pit/figures/fig_realmodel_fog.png)
+
 ## Why it matters
 
 "VLMs are too slow to play games" is half true, and the missing half is the

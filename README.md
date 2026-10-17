@@ -29,6 +29,12 @@ The judgment never changed; only the clock did.
 - **The commit point is nearly deterministic:** 63 of 72 in-window decisions
   land within one tick of each other across six seeds, so the real judge's
   transition is a step, not a curve.
+- **Fog in closed loop:** the same judge swept through the boundary under
+  fog commits over a five-tick spread, 35/72 episodes early (vs 9/72 clear);
+  the in-window boundary does not move (`r* = 1.01` vs 1.05), 22 of the early
+  commits are rescued by delay, and both sweeps clear exactly 41/72 with
+  opposite composition (36+5 vs 19+22). An aggregate score cannot tell them
+  apart.
 - **Perception axis (API battery, n=100 per cell):** with a neutral prompt no
   hosted model judges the depth cue (all at chance; Sonnet and Opus just say
   WAIT). With a prompt that names the cue, every model is near ceiling in
@@ -64,7 +70,7 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
 
-# tests (5 shell + 38 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (5 shell + 40 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

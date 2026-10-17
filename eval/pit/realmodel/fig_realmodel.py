@@ -24,11 +24,84 @@ sys.path.insert(0, str(REPO))
 from eval.pit.analyze import ratio, transition_fit, _decreasing_logistic  # noqa: E402
 
 DATA = Path(__file__).parent / "sonnet_boundary_sweep.jsonl"
+DATA_FOG1 = Path(__file__).parent / "sonnet_boundary_sweep_fog1.jsonl"
 OUT = REPO / "eval" / "pit" / "figures" / "fig_realmodel.png"
+OUT_FOG = REPO / "eval" / "pit" / "figures" / "fig_realmodel_fog.png"
+W_LO, W_HI = 8.921, 9.999
+
+
+def _load(path: Path) -> list[dict]:
+    return [json.loads(l) for l in open(path) if l.strip()]
+
+
+def sweep_summary(rows: list[dict]) -> dict:
+    """Numbers the paper quotes for a sweep: in-window counts by r band,
+    logistic r* on in-window decisions, early commits and how many of them
+    the delay rescued, and the commit-position distribution."""
+    inw = [x for x in rows if x["in_window"] == 1]
+    out = [x for x in rows if x["in_window"] == 0]
+    r_of = lambda x: ratio(x, source="delay")
+    fit = transition_fit([r_of(x) for x in inw], [x["cleared"] for x in inw]) if len(set(x["cleared"] for x in inw)) > 1 else None
+    from collections import Counter
+    commits = Counter(round(x["decision_x"], 2) for x in rows)
+    return {
+        "n": len(rows), "n_in": len(inw), "n_out": len(out),
+        "below_0_98": (sum(x["cleared"] for x in inw if r_of(x) <= 0.98), sum(1 for x in inw if r_of(x) <= 0.98)),
+        "edge": (sum(x["cleared"] for x in inw if 1.0 < r_of(x) < 1.09), sum(1 for x in inw if 1.0 < r_of(x) < 1.09)),
+        "above_1_09": (sum(x["cleared"] for x in inw if r_of(x) >= 1.09), sum(1 for x in inw if r_of(x) >= 1.09)),
+        "r_star": fit["r_star"] if fit else None,
+        "early_cleared": sum(x["cleared"] for x in out),
+        "commits": dict(sorted(commits.items())),
+        "cleared_total": sum(x["cleared"] for x in rows),
+    }
+
+
+def fig_fog_comparison(rows0: list[dict], rows1: list[dict], out_path: Path) -> dict:
+    """Fog 0 vs fog 1 sweeps side by side. Left: P(clear) vs r for in-window
+    decisions with each fit, early (out-of-window) decisions as crosses.
+    Right: commit-position histograms against the window -- the spread the
+    paper predicted a weaker cue would produce."""
+    r_of = lambda x: ratio(x, source="delay")
+    s0, s1 = sweep_summary(rows0), sweep_summary(rows1)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6))
+    rng = np.random.default_rng(3)
+    for rows, s, color, name in ((rows0, s0, "C0", "fog 0"), (rows1, s1, "C3", "fog 1")):
+        inw = [x for x in rows if x["in_window"] == 1]
+        out = [x for x in rows if x["in_window"] == 0]
+        ax1.scatter([r_of(x) for x in inw], [x["cleared"] + rng.uniform(-0.025, 0.025) for x in inw],
+                    s=20, alpha=0.6, color=color, label=f"{name}: in-window decision (n={len(inw)})")
+        ax1.scatter([r_of(x) for x in out], [x["cleared"] + rng.uniform(-0.025, 0.025) for x in out],
+                    s=36, alpha=0.9, color=color, marker="x", label=f"{name}: early decision (n={len(out)})")
+        if s["r_star"] is not None:
+            fit = transition_fit([r_of(x) for x in inw], [x["cleared"] for x in inw])
+            rc = np.linspace(0, 2.1, 400)
+            ax1.plot(rc, _decreasing_logistic(rc, fit["r_star"], fit["slope"]), color=color, lw=1.5,
+                     label=f"{name}: logistic fit, r* = {fit['r_star']:.2f}")
+    ax1.axvline(1.04, color="gray", ls=":", lw=1.2, label="oracle r* = 1.04")
+    ax1.set_xlabel("r = speed * delay_ticks / W")
+    ax1.set_ylabel("cleared")
+    ax1.set_title("Same judge, clear vs fog: outcome vs r")
+    ax1.legend(fontsize=6.5, loc="center left")
+
+    bins = np.arange(8.00, 9.10, 0.07) - 0.035
+    ax2.axvspan(W_LO, W_HI, color="#1b9e77", alpha=0.15, lw=0, label="action window")
+    for rows, color, name in ((rows0, "C0", "fog 0"), (rows1, "C3", "fog 1")):
+        xs = [x["decision_x"] for x in rows]
+        ax2.hist(xs, bins=bins, color=color, alpha=0.55, label=f"{name} commit position (n={len(xs)})")
+    ax2.set_xlim(8.0, 9.1)
+    ax2.set_xlabel("commit position x (tiles); window opens at 8.92")
+    ax2.set_ylabel("episodes")
+    ax2.set_title("Commit-point spread: clear vs fog")
+    ax2.legend(fontsize=7.5)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"[fig_realmodel_fog] fog0: {s0}\n[fig_realmodel_fog] fog1: {s1} -> {out_path}")
+    return {"fog0": s0, "fog1": s1}
 
 
 def main() -> None:
-    rows = [json.loads(l) for l in open(DATA) if l.strip()]
+    rows = _load(DATA)
     # These rows carry both the injected delay and Sonnet's measured API
     # latency; the sweep's r axis is the injected delay.
     r = np.array([ratio(x, source="delay") for x in rows])
@@ -67,6 +140,10 @@ def main() -> None:
     print(f"[fig_realmodel] n={len(rows)} r_star={fit['r_star']:.4f} "
           f"slope={fit['slope']:.4f} early={int(out.sum())} rescued={n_resc} "
           f"-> {OUT}")
+    if DATA_FOG1.exists():
+        fig_fog_comparison(rows, _load(DATA_FOG1), OUT_FOG)
+    else:
+        print(f"[fig_realmodel_fog] skipped -- no {DATA_FOG1.name} (run boundary_sweep.py --fog 1.0)")
 
 
 if __name__ == "__main__":
