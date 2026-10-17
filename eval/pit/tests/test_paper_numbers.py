@@ -200,6 +200,34 @@ def test_window_budget_257ms():
     assert round(t_ms) == 257
 
 
+def test_s5_judge_battery_and_first_passage():
+    # Paper (first-passage section): the final judge's battery is 108 approach
+    # frames x 3 samples; zero JUMPs on the first 79 frames; isolated JUMPs at
+    # x = 8.10 (1/3) and 8.24 (2/3); unanimous JUMP from x = 8.87 on (one
+    # frame before the window opens at 8.921). With independent per-frame
+    # errors over 90 approach frames, a single-JUMP commit rule fires early
+    # with probability 60% at p = 1% and 84% at p = 2%; the two-consecutive
+    # rule 0.9% and 3.4%.
+    from eval.pit.realmodel.fig_firstpassage import (
+        load_battery, p_false_commit_single, p_false_commit_two_consecutive,
+    )
+    rows = load_battery()
+    assert len(rows) == 108 and {r["n"] for r in rows} == {3}
+    assert all(r["jump"] == 0 for r in rows[:79])
+    assert rows[79]["px"] == 8.1
+    pre_window = {r["px"]: r["jump"] for r in rows if r["px"] < 8.921 and r["jump"] > 0}
+    assert pre_window == {8.1: 1, 8.24: 2, 8.87: 3}
+    assert all(r["jump"] == 3 for r in rows if r["px"] >= 8.87)
+    assert sum(r["n"] for r in rows if r["px"] < 8.1) == 237  # far-field samples, zero JUMPs
+    assert round(p_false_commit_single(0.01), 2) == 0.60
+    assert round(p_false_commit_single(0.02), 2) == 0.84
+    assert round(p_false_commit_two_consecutive(0.01), 3) == 0.009
+    assert round(p_false_commit_two_consecutive(0.02), 3) == 0.034
+    # Sanity on the exact chain: p = 0 never fires, p = 1 always does.
+    assert p_false_commit_two_consecutive(0.0) == 0.0
+    assert abs(p_false_commit_two_consecutive(1.0) - 1.0) < 1e-12
+
+
 def test_s5_realmodel_boundary_sweep():
     # S5: Sonnet 4.6 swept through the boundary by injected delay, its own
     # frame judgment in the loop. Paper: 72 episodes, in-window decisions
