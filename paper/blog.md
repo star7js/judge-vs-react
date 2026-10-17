@@ -75,14 +75,22 @@ positions, shuffled the frames into neutral names, and asked vision models to ca
 JUMP or WAIT from the **image alone** — no coordinates, no window, no labels — then
 scored each call against the true window.
 
-![perception vs fog](../eval/pit/figures/fig_perception.png)
+![perception vs fog](../eval/pit/figures/fig_perception_v2.png)
 
-With a clear view, the strong models genuinely see it: **Opus 90%, Sonnet 80%**.
-Then we add fog that hides the pit's *distance* — and their accuracy falls to
-chance (50%), missing every in-window frame. The neat part: that collapse shows up
-**only in the models that were actually reading depth**. A weaker judge that never
-used the depth cue (it just guesses "jump") doesn't drop under fog — it has no
-perception to lose. The fog collapse is a *signature of genuine depth perception*.
+The honest version of this result surprised me. Asked neutrally — "would a jump
+from here clear the pit?" — **no model judges it at all.** Haiku, Sonnet and
+Opus all sit at chance on a balanced set, and the two big models simply answer
+WAIT on every frame. Tell them *where to look* — "what touches the bottom edge
+of the image, tiles or black?" — and all three jump to **91–99%**, the small
+one included. Add fog and the ordering finally appears: Haiku drops to 68%,
+Opus to 94%, Sonnet doesn't move. So "can the model see the gap" turns out to
+be mostly "did the prompt name the cue", and the model's size shows up only as
+how well the cued reading survives fog.
+
+(An earlier version of this post said Opus and Sonnet read the depth
+unprompted and collapsed under fog, from a small battery judged by Claude Code
+subagents. Rerun through the API with ten times the frames, that didn't hold
+up, so it's withdrawn.)
 
 Crucially, this is all at **zero delay**. Perception and timing are separate axes:
 a model can fail because it can't see the gap, or because it sees it and acts too

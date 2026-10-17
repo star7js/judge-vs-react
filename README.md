@@ -29,9 +29,13 @@ The judgment never changed; only the clock did.
 - **The commit point is nearly deterministic:** 63 of 72 in-window decisions
   land within one tick of each other across six seeds, so the real judge's
   transition is a step, not a curve.
-- **Perception axis:** blind single-frame judgment at zero delay scales with
-  model capability (Opus 90%, Sonnet 80%) and collapses to chance under fog,
-  only in the models that read depth.
+- **Perception axis (API battery, n=100 per cell):** with a neutral prompt no
+  hosted model judges the depth cue (all at chance; Sonnet and Opus just say
+  WAIT). With a prompt that names the cue, every model is near ceiling in
+  clear weather (Haiku 97%, Sonnet 91%, Opus 99%), and fog then costs the
+  smallest model most (Haiku to 68%). Perception of this scene is a property
+  of the prompt. An earlier subagent-judged n=10 pilot that claimed unprompted
+  depth reading is retracted.
 - **Latency axis:** the window is open ~257 ms; hosted frontier VLMs decide in
   ~1–1.5 s (`r ≈ 4–6`), local open VLMs in 8–12 s (`r ≈ 31–47`). All past the
   boundary. Pausable/turn-based deployment converts the same models from
@@ -60,7 +64,7 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
 
-# tests (5 shell + 37 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (5 shell + 38 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \
