@@ -21,35 +21,67 @@ def _fit(rows):
     )
 
 
-def test_s1_timing_law_r_star_and_exclusions():
+def _unique_oracle_configs(rows):
+    # The oracle ignores fog and seed, so the 1680 rows are 60x replicates of
+    # 28 (pit_width, delay) configurations. Collapse to one row per config.
+    uniq = {}
+    for r in rows:
+        uniq.setdefault((r["pit_width"], r["delay"]), r)
+    return list(uniq.values())
+
+
+def test_s1_calibration_r_star_and_counts():
     rows = _rows("oracle_sweep.jsonl")
     assert len(rows) == 1680
     assert sum(window_width(r) <= 0 for r in rows) == 420
+    # Paper: 28 unique configs, 7 empty-window (pit width 4), 21 informative;
+    # every fog/seed replicate of a config is identical.
+    uniq = _unique_oracle_configs(rows)
+    assert len(uniq) == 28
+    assert sum(window_width(r) <= 0 for r in uniq) == 7
+    by_cfg = {}
+    for r in rows:
+        by_cfg.setdefault((r["pit_width"], r["delay"]), set()).add(
+            (r["cleared"], r["decision_x"])
+        )
+    assert all(len(v) == 1 for v in by_cfg.values())
     usable, fit = _fit(rows)
     assert round(fit["r_star"], 2) == 1.17
+    _, fit_uniq = _fit(uniq)
+    assert round(fit_uniq["r_star"], 2) == 1.17
 
 
 def test_s1_step_edge_bracket():
     # The paper reports the discrete-grid bracket around the transition:
-    # last clear at r = 1.04, first failure at r = 1.30.
+    # last clear at r = 1.04, first failure at r = 1.30, both at pit width 2.
+    # Within the default grid width 1 never fails and width 3 never clears
+    # past D = 0, so the edge is bracketed at one width only.
     rows = [r for r in _rows("oracle_sweep.jsonl") if window_width(r) > 0]
-    last_clear = max(ratio(r) for r in rows if r["cleared"])
-    first_fail = min(ratio(r) for r in rows if not r["cleared"])
-    assert round(last_clear, 2) == 1.04
-    assert round(first_fail, 2) == 1.30
+    last_clear = max(rows, key=lambda r: ratio(r) if r["cleared"] else -1)
+    first_fail = min(rows, key=lambda r: ratio(r) if not r["cleared"] else float("inf"))
+    assert (round(ratio(last_clear), 2), last_clear["pit_width"]) == (1.04, 2)
+    assert (round(ratio(first_fail), 2), first_fail["pit_width"]) == (1.30, 2)
+    assert all(r["cleared"] for r in rows if r["pit_width"] == 1)
+    assert all(not r["cleared"] for r in rows if r["pit_width"] == 3 and r["delay"] > 0)
 
 
 def test_s2_same_decision_flip():
-    # Unique configs (the oracle emits fog/seed duplicates), oracle-correct
-    # decisions only: 3/3 clear at delay 0; 1/9 once delay exceeds the window.
-    uniq = {}
-    for r in _rows("oracle_sweep.jsonl"):
-        uniq.setdefault((r["pit_width"], r["delay"], r["speed"]), r)
-    correct = [r for r in uniq.values() if r["in_window"] == 1]
+    # Unique configs, oracle-correct decisions only: 3/3 clear at delay 0;
+    # of the 9 configs past r = 1, only the r = 1.04 same-tick case clears,
+    # and 0/8 clear at r >= 1.30. The paper reports these counts, not a
+    # pooled rate (six of the nine are pit width 3 at r = 3.5-21).
+    correct = [
+        r for r in _unique_oracle_configs(_rows("oracle_sweep.jsonl"))
+        if window_width(r) > 0 and r["in_window"] == 1
+    ]
     d0 = [r for r in correct if r["delay"] == 0]
     late = [r for r in correct if r["delay"] > 0 and ratio(r) > 1]
+    past_edge = [r for r in late if round(ratio(r), 2) >= 1.30]
     assert (sum(r["cleared"] for r in d0), len(d0)) == (3, 3)
     assert (sum(r["cleared"] for r in late), len(late)) == (1, 9)
+    assert [round(ratio(r), 2) for r in late if r["cleared"]] == [1.04]
+    assert (sum(r["cleared"] for r in past_edge), len(past_edge)) == (0, 8)
+    assert sum(r["pit_width"] == 3 for r in late) == 6
 
 
 def test_s3_action_repeat_ladder():
@@ -60,16 +92,20 @@ def test_s3_action_repeat_ladder():
         assert round(fit["r_star"], 2) == want, f"k={k}"
 
 
-def test_s4_aim_generality():
+def test_s4_aim_calibration():
     rows = _rows("aim_sweep.jsonl")
     assert len(rows) == 205
+    assert len({(r["pit_width"], r["delay"]) for r in rows}) == 205  # all unique
     usable, fit = _fit(rows)
     assert round(fit["r_star"], 2) == 0.98
-    # Paper's step-edge bracket: last hit r = 0.96, first miss exactly r = 1.00.
-    last_hit = max(ratio(r) for r in usable if r["cleared"])
-    first_miss = min(ratio(r) for r in usable if not r["cleared"])
-    assert round(last_hit, 2) == 0.96
-    assert round(first_miss, 2) == 1.00
+    # Paper: at every width the last hit lies at r = 0.87-0.96 and the first
+    # miss at exactly r = 1.00.
+    for wid in sorted({r["pit_width"] for r in usable}):
+        g = [r for r in usable if r["pit_width"] == wid]
+        last_hit = max(ratio(r) for r in g if r["cleared"])
+        first_miss = min(ratio(r) for r in g if not r["cleared"])
+        assert 0.87 <= round(last_hit, 2) <= 0.96, wid
+        assert round(first_miss, 2) == 1.00, wid
 
 
 def test_perception_table_counts():
@@ -105,6 +141,16 @@ def test_latency_medians():
         by_model.setdefault(r["model"].split(" ")[0], []).append(r["latency_s"])
     medians = {m: round(statistics.median(v), 2) for m, v in by_model.items()}
     assert all(len(v) == 20 for v in by_model.values())
+    # Paper: in the fast configuration the hosted models answered WAIT on
+    # nearly every frame (Haiku, Sonnet 20/20; Opus 18/20) -- these are
+    # time-to-answer measurements, not judgments.
+    waits = {}
+    for r in rows:
+        m = r["model"].split(" ")[0]
+        waits[m] = waits.get(m, 0) + (r["decision"] == "WAIT")
+    assert waits["claude-haiku-4-5"] == 20
+    assert waits["claude-sonnet-4-6"] == 20
+    assert waits["claude-opus-4-8"] == 18
     assert medians == {
         "claude-haiku-4-5": 0.95,
         "claude-sonnet-4-6": 1.45,
