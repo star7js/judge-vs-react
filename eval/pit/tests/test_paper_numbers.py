@@ -139,13 +139,16 @@ def test_s4_aim_calibration():
 def test_perception_v2_api_battery():
     # Paper's perception table: API battery, 100 balanced frames per cell
     # (50 in-window, 50 out), two prompts x two fog levels x three hosted
-    # models. Neutral prompt: all at chance (Sonnet/Opus answered WAIT on
-    # 199/200 each). Cue prompt: 97/91/99% clear; 68/93/94% fog.
+    # models, plus local Qwen2.5-VL 7B. Neutral prompt: all at chance
+    # (Sonnet/Opus answered WAIT on 199/200 each). Cue prompt: 97/91/99%
+    # clear; 68/93/94% fog. Qwen: constant WAIT (neutral) / constant JUMP
+    # (cue), 50% in all four cells.
     from eval.pit.analyze import perception_v2_table
     rows = _rows("perception_judgments_v2.jsonl")
+    assert len(rows) == 1600
+    assert all(r["decision"] in ("JUMP", "WAIT") for r in rows)
     hosted = [r for r in rows if "API" in r["judge"]]
     assert len(hosted) == 1200
-    assert all(r["decision"] in ("JUMP", "WAIT") for r in hosted)
     cells = perception_v2_table(hosted)
     want = {
         ("claude-haiku-4-5 (API)", "blind-v1", 0.0): 52, ("claude-haiku-4-5 (API)", "blind-v1", 1.0): 48,
@@ -171,6 +174,16 @@ def test_perception_v2_api_battery():
     # Haiku under fog misses 30 of 50 in-window frames.
     h_fog = [r for r in hosted if r["judge"] == "claude-haiku-4-5 (API)" and r["prompt"] == "cue-v1" and r["fog"] == 1.0]
     assert sum(not r["jump"] for r in h_fog if r["in_window"]) == 30
+    # Qwen2.5-VL 7B (local): a constant answer in each arm, so exactly chance.
+    qwen = [r for r in rows if r["judge"] == "qwen2.5-vl-7b (local, Ollama)"]
+    assert len(qwen) == 400 and all(r["effort"] == "n/a" for r in qwen)
+    q_cells = perception_v2_table(qwen)
+    assert {(p, f): c["correct"] for (j, p, e, f), c in q_cells.items()} == {
+        ("blind-v1", 0.0): 50, ("blind-v1", 1.0): 50, ("cue-v1", 0.0): 50, ("cue-v1", 1.0): 50}
+    assert sum(r["jump"] for r in qwen if r["prompt"] == "blind-v1") == 0
+    assert sum(r["jump"] for r in qwen if r["prompt"] == "cue-v1") == 200
+    # Under the cue prompt it echoed the prompt's first line, then said JUMP.
+    assert all(r["raw"].startswith("What touches the bottom border") for r in qwen if r["prompt"] == "cue-v1")
 
 
 def test_perception_table_counts():

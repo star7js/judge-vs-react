@@ -378,7 +378,8 @@ through the API, blind, on a balanced battery. For each fog level we render
 100 standing frames at pit width 2 — 50 at distinct out-of-window positions
 (`x = 6.00–8.85`) and 50 inside the window (`x = 8.93–9.99`) — shuffle them
 into neutral names with a fixed seed, and show each alone (no coordinates,
-window, or labels) to three hosted models, which answer JUMP or WAIT; each
+window, or labels) to three hosted models and one local open model, which
+answer JUMP or WAIT; each
 answer is scored against the sim's `in_window` label, so chance on this set is
 50%. We ran two prompts. The *neutral* prompt describes the task (auto-walking
 toward a pit you must jump, too early lands short, too late walks in) and says
@@ -386,21 +387,24 @@ nothing about what the pit looks like or where in the frame to look. The *cue*
 prompt is the §4.4 judge's: it tells the model to read the strip touching the
 bottom border of the frame and answer tiles or black. Sonnet 4.6 and Opus 4.8
 run adaptive thinking at medium effort; Haiku 4.5 predates adaptive thinking
-and runs with a 2k-token thinking budget. 1,200 calls in all.
+and runs with a 2k-token thinking budget; Qwen2.5-VL 7B runs locally through
+Ollama with no thinking. 1,600 calls in all.
 
 | Model | Neutral, clear | Neutral, fog | Cue, clear | Cue, fog |
 |---|---|---|---|---|
 | Haiku 4.5 | 52% | 48% | **97%** | 68% |
 | Sonnet 4.6 | 50% | 50% | **91%** | 93% |
 | Opus 4.8 | 49% | 50% | **99%** | 94% |
+| Qwen2.5-VL 7B (local) | 50% | 50% | 50% | 50% |
 
 (n = 100 per cell; Wilson 95% intervals are ±5–10 points at the extremes and
 ±10 at chance.)
 
-Three things fall out. **(1) Unprompted, no model judges the cue at all.** With
+Four things fall out. **(1) Unprompted, no model judges the cue at all.** With
 the neutral prompt every model is at chance at both fog levels; Sonnet and
 Opus answered WAIT on 199 of 200 frames each without engaging extended
-thinking, and Haiku's JUMPs are scattered across the approach. **(2) Told
+thinking, Qwen on all 200, and Haiku's JUMPs are scattered across the
+approach. **(2) Told
 where to look, every model judges it, including the smallest.** The cue prompt
 lifts clear-weather accuracy to 97% (Haiku), 91% (Sonnet) and 99% (Opus); each
 contrast with the neutral prompt is Fisher exact p < 1e-9. **(3) Fog degrades
@@ -409,7 +413,14 @@ Haiku falls from 97% to 68% (p = 3.5e-8), missing 30 of 50 in-window frames;
 Opus from 99% to 94% (p = 0.12); Sonnet is unchanged (91% vs. 93%, p = 0.8),
 its clear-weather errors being false JUMPs in the tile before the window
 (`x = 7.98–8.73`, 9/50 at medium effort) rather than misses. The capability
-ordering is visible only under fog and only with the cue.
+ordering is visible only under fog and only with the cue. **(4) The local 7B
+model never judges it.** Qwen2.5-VL answered WAIT on every neutral frame and
+JUMP on every cue frame, clear or fog; under the cue prompt it echoed the
+prompt's first line verbatim instead of answering it, then emitted JUMP. Both
+arms are a constant answer, so both sit at exactly 50% on the balanced set. A
+model that follows the cue instruction (the hosted three) and one that cannot
+(Qwen) are indistinguishable with the neutral prompt and 49 points apart with
+the cue.
 
 **Retraction of the pilot result.** An earlier draft reported, from a
 10-frame-per-cell battery judged by Claude Code subagents rather than API
@@ -520,12 +531,13 @@ approach.
   from the final judge (whose far-field rate on the battery was zero in 237
   samples).
 - **The perception axis (§4.8) is one scene, two prompts, three hosted models at
-  medium effort.** The cue prompt is the §4.4 judge's, so the cue-arm numbers
+  medium effort and one local 7B model.** The cue prompt is the §4.4 judge's, so the cue-arm numbers
   are that judge's single-frame accuracy at a lower effort than the sweep
   used; a prompt that named a different cue, or a scene without a pixel-sharp
   cue, could land anywhere between the two arms. Judges are blind to
-  coordinates and labels but not to the task. A local open VLM (Qwen2.5-VL
-  7B) is being run through the same battery and is reported when complete.
+  coordinates and labels but not to the task. The local model's chance result
+  is an instruction-following failure (a constant answer), not a measurement
+  of its depth perception.
 - **The latency battery measures time-to-answer, not judgment, at one
   arbitrary sim speed.** In the fast configuration the hosted models answered
   WAIT on nearly every frame; a configuration that discriminates is slower, so
@@ -563,14 +575,15 @@ Action-repeat is a compute/cost lever, not a latency fix.
 - `../eval/pit/figures/fig_realmodel.png` — §4.4, Sonnet 4.6 swept through the boundary in closed loop (r*=1.05; 32/32 below, 0/26 above; early decisions fail below the boundary and are the only survivors past it; data + driver in `../eval/pit/realmodel/`).
 - `../eval/pit/figures/fig_realmodel_fog.png` — §4.7, the same judge swept through the boundary in clear weather and fog (in-window r* 1.05 vs 1.01; commit-point histograms; 35/72 early commits under fog, 22 rescued).
 - `../eval/pit/figures/fig_firstpassage.png` — §4.5, the final judge's per-frame JUMP rate on all 108 approach frames, and the probability that a per-frame false-JUMP rate fires somewhere over the 90-frame approach under single-JUMP vs. two-consecutive commit rules.
-- `../eval/pit/figures/fig_perception_v2.png` — §4.7, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
+- `../eval/pit/figures/fig_perception_v2.png` — §4.7, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models + local Qwen2.5-VL 7B, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
 - `../eval/pit/figures/fig_latency.png` — §4.8, real per-model decision latency vs. the time budget at this sim speed, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms budget.
 - `../eval/pit/figures/fig_repeat.png` — Appendix A, action-repeat control.
 
 Perception data + method: `../eval/pit/data/perception_judgments_v2.jsonl`
-(1,200 hosted rows: pit_width=2, fog∈{0,1}, 100 balanced positions per fog,
+(1,600 rows: pit_width=2, fog∈{0,1}, 100 balanced positions per fog,
 prompts `blind-v1` and `cue-v1`, judged by Haiku 4.5 / Sonnet 4.6 / Opus 4.8
-through the Messages API, each seeing the image alone, seed-42 shuffled,
+through the Messages API and by Qwen2.5-VL 7B locally through Ollama, each
+seeing the image alone, seed-42 shuffled,
 scored against the sim's `in_window`; per-row latency and token usage
 recorded). Generated by `eval/pit/run_perception_api.py`; frames by
 `keen-raycaster --shoot --offsets`. `perception_judgments.jsonl` is the
