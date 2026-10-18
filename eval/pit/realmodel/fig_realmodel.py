@@ -25,8 +25,10 @@ from eval.pit.analyze import ratio, transition_fit, _decreasing_logistic  # noqa
 
 DATA = Path(__file__).parent / "sonnet_boundary_sweep.jsonl"
 DATA_FOG1 = Path(__file__).parent / "sonnet_boundary_sweep_fog1.jsonl"
+DATA_HAIKU = Path(__file__).parent / "haiku_boundary_sweep.jsonl"
 OUT = REPO / "eval" / "pit" / "figures" / "fig_realmodel.png"
 OUT_FOG = REPO / "eval" / "pit" / "figures" / "fig_realmodel_fog.png"
+OUT_HAIKU = REPO / "eval" / "pit" / "figures" / "fig_realmodel_haiku.png"
 W_LO, W_HI = 8.921, 9.999
 
 
@@ -57,15 +59,22 @@ def sweep_summary(rows: list[dict]) -> dict:
 
 
 def fig_fog_comparison(rows0: list[dict], rows1: list[dict], out_path: Path) -> dict:
-    """Fog 0 vs fog 1 sweeps side by side. Left: P(clear) vs r for in-window
+    """Fog 0 vs fog 1 sweeps side by side (see fig_two_sweeps)."""
+    return fig_two_sweeps(rows0, rows1, out_path, names=("fog 0", "fog 1"),
+                          title="Same judge, clear vs fog", tag="fig_realmodel_fog")
+
+
+def fig_two_sweeps(rows0: list[dict], rows1: list[dict], out_path: Path, *,
+                   names: tuple[str, str], title: str, tag: str,
+                   hist_lo: float = 8.0, hist_hi: float = 9.1) -> dict:
+    """Two 72-episode sweeps side by side. Left: P(clear) vs r for in-window
     decisions with each fit, early (out-of-window) decisions as crosses.
-    Right: commit-position histograms against the window -- the spread the
-    paper predicted a weaker cue would produce."""
+    Right: commit-position histograms against the window."""
     r_of = lambda x: ratio(x, source="delay")
     s0, s1 = sweep_summary(rows0), sweep_summary(rows1)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6))
     rng = np.random.default_rng(3)
-    for rows, s, color, name in ((rows0, s0, "C0", "fog 0"), (rows1, s1, "C3", "fog 1")):
+    for rows, s, color, name in ((rows0, s0, "C0", names[0]), (rows1, s1, "C3", names[1])):
         inw = [x for x in rows if x["in_window"] == 1]
         out = [x for x in rows if x["in_window"] == 0]
         ax1.scatter([r_of(x) for x in inw], [x["cleared"] + rng.uniform(-0.025, 0.025) for x in inw],
@@ -80,24 +89,24 @@ def fig_fog_comparison(rows0: list[dict], rows1: list[dict], out_path: Path) -> 
     ax1.axvline(1.04, color="gray", ls=":", lw=1.2, label="oracle r* = 1.04")
     ax1.set_xlabel("r = speed * delay_ticks / W")
     ax1.set_ylabel("cleared")
-    ax1.set_title("Same judge, clear vs fog: outcome vs r")
+    ax1.set_title(f"{title}: outcome vs r")
     ax1.legend(fontsize=6.5, loc="center left")
 
-    bins = np.arange(8.00, 9.10, 0.07) - 0.035
+    bins = np.arange(hist_lo, hist_hi, 0.07) - 0.035
     ax2.axvspan(W_LO, W_HI, color="#1b9e77", alpha=0.15, lw=0, label="action window")
-    for rows, color, name in ((rows0, "C0", "fog 0"), (rows1, "C3", "fog 1")):
+    for rows, color, name in ((rows0, "C0", names[0]), (rows1, "C3", names[1])):
         xs = [x["decision_x"] for x in rows]
         ax2.hist(xs, bins=bins, color=color, alpha=0.55, label=f"{name} commit position (n={len(xs)})")
-    ax2.set_xlim(8.0, 9.1)
+    ax2.set_xlim(hist_lo, hist_hi)
     ax2.set_xlabel("commit position x (tiles); window opens at 8.92")
     ax2.set_ylabel("episodes")
-    ax2.set_title("Commit-point spread: clear vs fog")
+    ax2.set_title(f"Commit-point spread: {names[0]} vs {names[1]}")
     ax2.legend(fontsize=7.5)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-    print(f"[fig_realmodel_fog] fog0: {s0}\n[fig_realmodel_fog] fog1: {s1} -> {out_path}")
-    return {"fog0": s0, "fog1": s1}
+    print(f"[{tag}] {names[0]}: {s0}\n[{tag}] {names[1]}: {s1} -> {out_path}")
+    return {names[0]: s0, names[1]: s1}
 
 
 def main() -> None:
@@ -144,6 +153,11 @@ def main() -> None:
         fig_fog_comparison(rows, _load(DATA_FOG1), OUT_FOG)
     else:
         print(f"[fig_realmodel_fog] skipped -- no {DATA_FOG1.name} (run boundary_sweep.py --fog 1.0)")
+    if DATA_HAIKU.exists():
+        fig_two_sweeps(rows, _load(DATA_HAIKU), OUT_HAIKU, names=("Sonnet 4.6", "Haiku 4.5"),
+                       title="Two judges, clear weather", tag="fig_realmodel_haiku", hist_lo=4.9, hist_hi=9.3)
+    else:
+        print(f"[fig_realmodel_haiku] skipped -- no {DATA_HAIKU.name} (run boundary_sweep.py --model claude-haiku-4-5-20251001)")
 
 
 if __name__ == "__main__":

@@ -52,14 +52,21 @@ def rules_decide(st: dict) -> bool:
 
 
 
+# Retries taken by the most recent API call; logged per decision so a
+# real-time emulation can tell model latency from rate-limit backoff.
+_RETRIES = {"last": 0}
+
+
 def _create_with_retry(client, **kwargs):
     """Retry API calls with backoff. The sim clock is decoupled from
     wall-clock, so blocking here is free; a dead agent mid-episode is not."""
     delay_s = 2.0
+    _RETRIES["last"] = 0
     for attempt in range(10):
         try:
             return client.messages.create(**kwargs)
         except Exception as exc:
+            _RETRIES["last"] = attempt + 1
             if attempt == 9:
                 raise
             print(f"  [vision] API error (attempt {attempt+1}): {exc} — "
@@ -67,7 +74,17 @@ def _create_with_retry(client, **kwargs):
             time.sleep(delay_s)
             delay_s = min(delay_s * 2, 60.0)
 
-def make_vision_decider(frame_path: str, model: str, latency_log: str | None = None):
+def thinking_kwargs(model: str, effort: str = "high") -> dict:
+    """Per-model thinking configuration. Haiku 4.5 predates adaptive thinking
+    and takes a token budget (effort does not apply); the 4.6+ models take
+    adaptive thinking at `effort` (the S5 judge uses high)."""
+    if model.startswith("claude-haiku-4-5"):
+        return {"thinking": {"type": "enabled", "budget_tokens": 2048}, "max_tokens": 4096}
+    return {"thinking": {"type": "adaptive"}, "output_config": {"effort": effort}, "max_tokens": 1500}
+
+
+def make_vision_decider(frame_path: str, model: str, latency_log: str | None = None,
+                        effort: str = "high"):
     """Build a decide(st)->bool backed by Claude vision. Frame comes from disk
     (the game's --frame-out), never from pit_dist — the view is the only input.
 
@@ -79,8 +96,12 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
     import anthropic
     from PIL import Image
 
-    client = anthropic.Anthropic()  # ANTHROPIC_API_KEY from the environment
-    print(f"[pit-agent] vision model={model} frame={frame_path}", flush=True)
+    # ANTHROPIC_API_KEY from the environment. A vision call takes 2-12 s;
+    # 60 s bounds a hung connection (the SDK default is 600 s), and
+    # max_retries=0 so every retry goes through _create_with_retry and is
+    # counted in the latency log.
+    client = anthropic.Anthropic(timeout=60.0, max_retries=0)
+    print(f"[pit-agent] vision model={model} effort={effort} frame={frame_path}", flush=True)
 
     def decide(st: dict) -> bool:
         if st["on_ground"] != 1:
@@ -100,11 +121,7 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
         resp = _create_with_retry(
             client,
             model=model,
-            max_tokens=1500,
-            # Opus/Sonnet-4.6+ can't disable thinking; low effort keeps the
-            # per-frame call fast and cheap for a reflex yes/no.
-            thinking={"type": "adaptive"},
-            output_config={"effort": "high"},
+            **thinking_kwargs(model, effort),
             messages=[{
                 "role": "user",
                 "content": [
@@ -125,6 +142,7 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
                     "tick": st["tick"], "px": st["px"],
                     "latency_s": round(dt, 4),
                     "action": "jump" if jump else "none",
+                    "retries": _RETRIES["last"],
                 }) + "\n")
         return jump
 
@@ -213,6 +231,35 @@ def make_ollama_decider(frame_path: str, model: str, base_url: str,
     return decide
 
 
+def realtime_step(st: dict, decide, pending: dict, clock_s: float,
+                  fixed_latency_s: float, latency_log: str | None) -> bool:
+    """One tick of an emulated real-time loop. While a decision is in flight
+    (tick < apply_tick) the judge is not consulted and the action is WAIT.
+    When the in-flight decision lands, it is returned for this tick, and the
+    judge is asked afresh on this tick's frame; that call's wall-clock
+    latency L (plus any fixed --latency sleep) becomes its own delay,
+    n = max(1, round(L / clock_s)) ticks. The sim is blocking, so sim time
+    does not advance during the call: the delay is replayed in ticks, which
+    is exactly what a real-time loop running at `clock_s` per tick would do,
+    minus render jitter."""
+    tick = st["tick"]
+    if tick < pending["apply_tick"]:
+        return False
+    jump_now = pending["jump"] if pending["apply_tick"] == tick else False
+    t0 = time.time()
+    jump_next = decide(st)
+    dt = time.time() - t0 + fixed_latency_s
+    n = max(1, round(dt / clock_s))
+    pending["apply_tick"], pending["jump"] = tick + n, jump_next
+    if latency_log:
+        with open(latency_log, "a") as f:
+            f.write(json.dumps({"tick": tick, "px": st["px"], "latency_s": round(dt, 4),
+                                "delay_ticks": n, "clock_s": clock_s,
+                                "action": "jump" if jump_next else "none",
+                                "retries": _RETRIES["last"], "emulated": True}) + "\n")
+    return jump_now
+
+
 def read_latest_state(sock: socket.socket, buf: bytearray):
     """Block for at least one complete line, then drain to the freshest state."""
     while b"\n" not in buf:
@@ -254,6 +301,13 @@ def main() -> None:
                     help="rules backend: seconds per decision (simulate a slow call)")
     ap.add_argument("--max-seconds", type=float, default=0.0,
                     help="stop after N seconds and print a summary (0 = until won)")
+    ap.add_argument("--effort", default="high",
+                    help="vision backend, 4.6+ models: adaptive-thinking effort (S5 judge: high)")
+    ap.add_argument("--clock-s", type=float, default=0.0,
+                    help="emulate a real-time loop with this wall-clock period per sim "
+                         "tick: each decision's own measured latency L is applied "
+                         "round(L/clock) ticks after the frame it was asked on, and the "
+                         "judge is not asked again until it answers (0 = blocking mode)")
     ap.add_argument("--latency-log", default=None,
                     help="vision backend: append one JSON line per decision "
                          "with the measured API call latency (rules backend "
@@ -261,7 +315,7 @@ def main() -> None:
     a = ap.parse_args()
 
     if a.backend == "vision":
-        raw_decide = make_vision_decider(a.frame, a.model, a.latency_log)
+        raw_decide = make_vision_decider(a.frame, a.model, a.latency_log, a.effort)
 
         # Commit rule: fire only on two consecutive JUMP answers. A single
         # stochastic JUMP (~2% per call far from the pit) would otherwise
@@ -293,16 +347,21 @@ def main() -> None:
 
     buf = bytearray()
     jumps = 0
+    # Real-time emulation state: the decision in flight and the tick it lands.
+    pending = {"apply_tick": -1, "jump": False}
     while True:
         st, buf = read_latest_state(sock, buf)
         if st is None:
             print("[pit-agent] game closed", flush=True)
             return
 
-        if a.latency > 0:
+        if a.latency > 0 and a.clock_s == 0:
             time.sleep(a.latency)
 
-        jump = decide(st)
+        if a.clock_s > 0:
+            jump = realtime_step(st, decide, pending, a.clock_s, a.latency, a.latency_log)
+        else:
+            jump = decide(st)
         if jump:
             jumps += 1
             if a.backend == "rules":

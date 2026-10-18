@@ -587,6 +587,26 @@ def fig_perception(rows: list[dict], out_path: str) -> dict:
     return result
 
 
+def delay_sweep_expectation(rows: list[dict], delays: list[int], *, per_delay: int,
+                            speed: float = 0.07, w_lo: float = 8.921, x_hi: float = 10.065) -> dict:
+    """Expected clears over a delay sweep, from the sweep's own commit
+    distribution. With F the empirical distribution of commit positions
+    (independent of D: the judge sees the same frames up to its commit, the
+    delay only shifts the takeoff), P(clear | D) = F(x_hi - vD) - F(w_lo - vD)
+    where x_hi = w_hi + the same-tick tolerance. Summed over a delay grid of
+    `per_delay` episodes each this gives the expected total. On a dense
+    uniform grid of spacing dD the sum tends to (x_hi - w_lo) / (v dD) per
+    seed for ANY F supported where some grid delay can rescue it: a delay-swept
+    aggregate measures the window, not the judge. Returns the grid
+    expectation, the per-delay curve, and the dense-grid (dD = 1) value."""
+    xs = [r["decision_x"] for r in rows]
+    p = lambda D: sum(w_lo <= x + speed * D <= x_hi for x in xs) / len(xs)
+    curve = {D: p(D) for D in delays}
+    dense = sum(per_delay * p(D) for D in range(0, 60))
+    return {"expected": per_delay * sum(curve.values()), "curve": curve,
+            "dense_expected": dense, "dense_limit": per_delay * (x_hi - w_lo) / speed}
+
+
 def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     """Wilson score interval for a binomial proportion."""
     if n == 0:

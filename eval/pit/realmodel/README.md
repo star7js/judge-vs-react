@@ -18,6 +18,10 @@ which 5 are delay-rescued.
 | `battery_fog.py` | Renders the 108 tick-grid approach frames at a chosen fog and runs the S5 judge on them; the gate before a fog sweep. |
 | `battery_v4_high_fog1.json` | The final judge at fog 1: 108 frames × 3 samples (far-field false JUMP at 2.85, early JUMPs 8.38–8.87, two non-unanimous in-window frames). |
 | `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL, and `fig_realmodel_fog.png` (clear vs fog comparison + commit histograms) when the fog sweep exists. |
+| `sonnet_clock_sweep.jsonl` | Clock-rate sweep (`clock_sweep.py`): the same judge in an emulated real-time loop, 12 clock periods × 6 seeds, each call's measured latency replayed as its own delay. 31/72 cleared; flip at r = 1/3; deliberation stall on x ∈ [7.9, 8.4]. Rows carry `clock_s`, `effort`, `judge_x`, `delay_ticks_median`, and a per-call `call_log` of [px, latency_s, delay_ticks, raw answer, committed action, retries]. |
+| `sonnet_clock_sweep_low.jsonl` | The same clock-rate sweep at low effort (`clock_sweep.py --effort low`): no stall (1.0 s flat) but 54% false JUMP on x ∈ [7.5, 8.92), 58/72 early commits, 8/72 cleared. |
+| `clock_sweep.py` | Driver for the clock-rate sweep (`--effort`, `--clocks`, `--backend rules --latency` for a free self-test). |
+| `fig_clock.py` | Regenerates `../figures/fig_clock.png` from the clock sweep(s). |
 | `fig_firstpassage.py` | Regenerates `../figures/fig_firstpassage.png`: the final judge's per-frame JUMP rate from `battery_v4_high.json`, and the first-passage probability of a per-frame false-JUMP rate over the 90-frame approach under single-JUMP vs. two-consecutive commit rules. |
 
 ## Reproduce

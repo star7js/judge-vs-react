@@ -181,6 +181,36 @@ equal.
 
 ![the same judge, clear vs fog](../eval/pit/figures/fig_realmodel_fog.png)
 
+## Putting its own latency in the loop
+
+Everything so far injects the delay with a knob. So we took the knob away:
+same judge, but now each decision's real latency, measured on the call, is the
+delay, and the only thing we vary is how fast the world moves while it thinks.
+At the game's real speed the window is open for a third of a second and the
+model gets exactly one look per episode. It never makes it. Slow the world
+down 90 times and it clears every pit. In between, the flip lands at `r` of
+about one third, not one, because the judge has to say "jump" twice in a row
+and both answers have to fit inside the window.
+
+![own latency through the boundary](../eval/pit/figures/fig_clock.png)
+
+The part I didn't predict is in the right panel. The model answers in about
+2.6 seconds on almost every frame. On the handful of frames just before the
+window opens, where the pit is close but not quite at your feet, it thinks
+for 10 to 32 seconds. It isn't stuck; it is deliberating, several hundred
+tokens of it, and it finishes on its own. In a paused game that costs
+nothing. In a running game you walk into the pit while it decides. Nearly
+every failure in the middle of the sweep was that one event, on that one
+frame, and the model was never actually wrong on those episodes. It was late
+because it was careful, on exactly the frame that mattered.
+
+So we turned the care off and ran it again at low reasoning effort. The stall
+vanished, a flat one second everywhere. And the same frames that made the
+careful judge think now make the quick one guess: it says "jump" on more than
+half of them, jumps early in 58 of 72 episodes, and clears 8. The frames that
+stall the careful judge are the frames that fool the fast one. Effort doesn't
+buy you time; it trades one failure for the other on the same few frames.
+
 ## Why it matters
 
 "VLMs are too slow to play games" is half true, and the missing half is the

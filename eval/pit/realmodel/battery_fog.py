@@ -31,7 +31,7 @@ from PIL import Image
 HERE = Path(__file__).parent
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(HERE))
-from sweep_agent import VISION_PROMPT  # noqa: E402  (the S5 judge's prompt)
+from sweep_agent import VISION_PROMPT, thinking_kwargs  # noqa: E402  (the S5 judge's prompt)
 
 W_LO, W_HI = 8.921, 9.999
 PIT_NEAR = 10.0
@@ -61,12 +61,11 @@ def b64_of(path: str) -> str:
     return base64.standard_b64encode(buf.getvalue()).decode()
 
 
-def ask(client, b64: str) -> tuple[bool, dict]:
+def ask(client, model: str, b64: str) -> tuple[bool, dict]:
     for attempt in range(8):
         try:
             r = client.messages.create(
-                model=MODEL, max_tokens=1500,
-                thinking={"type": "adaptive"}, output_config={"effort": "high"},
+                model=model, **thinking_kwargs(model),
                 messages=[{"role": "user", "content": [
                     {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}},
                     {"type": "text", "text": VISION_PROMPT}]}],
@@ -87,10 +86,13 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--binary", default=os.environ.get("KEEN_BIN", str(REPO / "raycaster/build/keen-raycaster")))
     ap.add_argument("--workdir", default="/tmp/keen_battery_fog")
+    ap.add_argument("--model", default=MODEL,
+                    help="judge model (default the S5 judge; e.g. claude-haiku-4-5-20251001)")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 
-    out = Path(a.out) if a.out else HERE / f"battery_v4_high_fog{a.fog:.0f}.json"
+    tag = "" if a.model == MODEL else "_" + a.model.split("-")[1]   # e.g. _haiku
+    out = Path(a.out) if a.out else HERE / f"battery_v4_high_fog{a.fog:.0f}{tag}.json"
     workdir = Path(a.workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     rows = render(a.binary, workdir, a.fog)
@@ -99,7 +101,7 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=a.workers) as pool:
         b64s = list(pool.map(b64_of, [r["path"] for r in rows]))
         jobs = [(i, s) for i in range(len(rows)) for s in range(a.samples)]
-        results = list(pool.map(lambda j: ask(client, b64s[j[0]]), jobs))
+        results = list(pool.map(lambda j: ask(client, a.model, b64s[j[0]]), jobs))
 
     jumps = [0] * len(rows)
     usage = {"input_tokens": 0, "output_tokens": 0}
@@ -111,7 +113,7 @@ def main() -> None:
     out.write_text(json.dumps(battery))
 
     line = "".join("J" if b["jump"] == b["n"] else ("j" if b["jump"] else ".") for b in battery)
-    print(f"fog={a.fog} model={MODEL} effort=high samples={a.samples} ({len(rows)} frames)")
+    print(f"fog={a.fog} model={a.model} samples={a.samples} ({len(rows)} frames)")
     print(line)
     early = [(b["px"], b["jump"]) for b in battery if b["jump"] and b["px"] < W_LO]
     missed = [(b["px"], b["jump"]) for b in battery if b["jump"] < b["n"] and W_LO <= b["px"] < W_HI]
