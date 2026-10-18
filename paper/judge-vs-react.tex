@@ -504,8 +504,8 @@ through the API, blind, on a balanced battery. For each fog level we render
 100 standing frames at pit width 2 --- 50 at distinct out-of-window positions
 ($x = 6.00$--$8.85$) and 50 inside the window ($x = 8.93$--$9.99$) --- shuffle
 them into neutral names with a fixed seed, and show each alone (no
-coordinates, window, or labels) to three hosted models, which answer JUMP or
-WAIT; each answer is scored against the sim's \code{in\_window} label, so
+coordinates, window, or labels) to three hosted models and one local open
+model, which answer JUMP or WAIT; each answer is scored against the sim's \code{in\_window} label, so
 chance on this set is 50\%. We ran two prompts. The \emph{neutral} prompt
 describes the task (auto-walking toward a pit you must jump, too early lands
 short, too late walks in) and says nothing about what the pit looks like or
@@ -513,8 +513,9 @@ where in the frame to look. The \emph{cue} prompt is the \S\ref{sec:real}
 judge's: it tells the model to read the strip touching the bottom border of
 the frame and answer tiles or black. Sonnet~4.6 and Opus~4.8 run adaptive
 thinking at medium effort; Haiku~4.5 predates adaptive thinking and runs with
-a 2k-token thinking budget. 1{,}200 calls in all
-(Table~\ref{tab:perception}, Fig.~\ref{fig:perception}).
+a 2k-token thinking budget; Qwen2.5-VL~7B runs locally through Ollama with
+no thinking. 1{,}600 calls in all (Table~\ref{tab:perception},
+Fig.~\ref{fig:perception}).
 
 \begin{table}[h]
   \centering
@@ -530,14 +531,16 @@ a 2k-token thinking budget. 1{,}200 calls in all
     Haiku 4.5   & 52\% & 48\% & 97\% & 68\% \\
     Sonnet 4.6  & 50\% & 50\% & 91\% & 93\% \\
     Opus 4.8    & 49\% & 50\% & 99\% & 94\% \\
+    Qwen2.5-VL 7B (local) & 50\% & 50\% & 50\% & 50\% \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Three things fall out. \textbf{(1) Unprompted, no model judges the cue at
+Four things fall out. \textbf{(1) Unprompted, no model judges the cue at
 all.} With the neutral prompt every model is at chance at both fog levels;
 Sonnet and Opus answered WAIT on 199 of 200 frames each without engaging
-extended thinking, and Haiku's JUMPs are scattered across the approach.
+extended thinking, Qwen on all 200, and Haiku's JUMPs are scattered across
+the approach.
 \textbf{(2) Told where to look, every model judges it, including the
 smallest.} The cue prompt lifts clear-weather accuracy to 97\% (Haiku), 91\%
 (Sonnet) and 99\% (Opus); each contrast with the neutral prompt is Fisher
@@ -547,7 +550,14 @@ model is weakest, not where it is strongest.} Haiku falls from 97\% to 68\%
 to 94\% ($p = 0.12$); Sonnet is unchanged (91\% vs.\ 93\%, $p = 0.8$), its
 clear-weather errors being false JUMPs in the tile before the window
 ($x = 7.98$--$8.73$, 9/50 at medium effort) rather than misses. The capability
-ordering is visible only under fog and only with the cue.
+ordering is visible only under fog and only with the cue. \textbf{(4) The
+local 7B model never judges it.} Qwen2.5-VL answered WAIT on every neutral
+frame and JUMP on every cue frame, clear or fog; under the cue prompt it
+echoed the prompt's first line verbatim instead of answering it, then emitted
+JUMP. Both arms are a constant answer, so both sit at exactly 50\% on the
+balanced set. A model that follows the cue instruction (the hosted three)
+and one that cannot (Qwen) are indistinguishable with the neutral prompt and
+49 points apart with the cue.
 
 \paragraph{Retraction of the pilot result.} An earlier draft reported, from a
 10-frame-per-cell battery judged by Claude Code subagents rather than API
@@ -573,9 +583,10 @@ false-JUMP rate at medium effort would be fatal in closed loop, and
   \centering
   \includegraphics[width=0.9\linewidth]{fig_perception_v2.png}
   \caption{Perception axis through the API. Neutral prompt: every model at
-  chance, clear or fog. Cue prompt: every model near ceiling in clear
-  weather; fog costs Haiku 29 points, Opus 5, Sonnet none. Wilson 95\%
-  intervals.}
+  chance, clear or fog. Cue prompt: every hosted model near ceiling in clear
+  weather; fog costs Haiku 29 points, Opus 5, Sonnet none. The local
+  Qwen2.5-VL~7B gives a constant answer in both arms (WAIT, then JUMP) and
+  stays at chance. Wilson 95\% intervals.}
   \label{fig:perception}
 \end{figure}
 
@@ -695,13 +706,13 @@ zero per frame does not round to zero per approach.
     from earlier prompt versions, not from the final judge (whose far-field
     rate on the battery was zero in 237 samples).
   \item \textbf{The perception axis is one scene, two prompts, three hosted
-    models at medium effort.} The cue prompt is the \S\ref{sec:real} judge's,
+    models at medium effort and one local 7B model.} The cue prompt is the \S\ref{sec:real} judge's,
     so the cue-arm numbers are that judge's single-frame accuracy at a lower
     effort than the sweep used; a prompt that named a different cue, or a
     scene without a pixel-sharp cue, could land anywhere between the two
-    arms. Judges are blind to coordinates and labels but not to the task. A
-    local open VLM (Qwen2.5-VL 7B) is being run through the same battery and
-    is reported when complete.
+    arms. Judges are blind to coordinates and labels but not to the task. The
+    local model's chance result is an instruction-following failure (a
+    constant answer), not a measurement of its depth perception.
   \item \textbf{The latency battery measures time-to-answer, not judgment,
     at one arbitrary sim speed.} In the fast configuration the hosted models
     answered WAIT on nearly every frame; a configuration that discriminates is

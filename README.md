@@ -39,8 +39,9 @@ The judgment never changed; only the clock did.
   hosted model judges the depth cue (all at chance; Sonnet and Opus just say
   WAIT). With a prompt that names the cue, every model is near ceiling in
   clear weather (Haiku 97%, Sonnet 91%, Opus 99%), and fog then costs the
-  smallest model most (Haiku to 68%). Perception of this scene is a property
-  of the prompt. An earlier subagent-judged n=10 pilot that claimed unprompted
+  smallest model most (Haiku to 68%). A local Qwen2.5-VL 7B gives a constant
+  answer in both arms (WAIT, then JUMP) and stays at chance. Perception of
+  this scene is a property of the prompt. An earlier subagent-judged n=10 pilot that claimed unprompted
   depth reading is retracted.
 - **Latency axis:** the window is open ~257 ms; hosted frontier VLMs decide in
   ~1–1.5 s (`r ≈ 4–6`), local open VLMs in 8–12 s (`r ≈ 31–47`). All past the

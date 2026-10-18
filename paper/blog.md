@@ -85,7 +85,9 @@ of the image, tiles or black?" — and all three jump to **91–99%**, the small
 one included. Add fog and the ordering finally appears: Haiku drops to 68%,
 Opus to 94%, Sonnet doesn't move. So "can the model see the gap" turns out to
 be mostly "did the prompt name the cue", and the model's size shows up only as
-how well the cued reading survives fog.
+how well the cued reading survives fog. (A local 7B open model, Qwen2.5-VL,
+never got that far: it said WAIT to every neutral frame and JUMP to every cued
+frame, parroting the prompt back instead of answering it. Chance both ways.)
 
 (An earlier version of this post said Opus and Sonnet read the depth
 unprompted and collapsed under fog, from a small battery judged by Claude Code
