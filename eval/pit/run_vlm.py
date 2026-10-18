@@ -60,6 +60,7 @@ def run_vlm_episode(
     model: str | None = None,
     latency_log: str,
     frame_out: str = "/tmp/keen_ray_frame.bmp",
+    agent_extra: list[str] | None = None,
 ) -> dict:
     """Run one `--policy agent` episode driven by `pit_agent.py` and return
     the merged result row.
@@ -100,6 +101,8 @@ def run_vlm_episode(
     ]
     if backend in ("vision", "ollama"):
         agent_args += ["--model", model]
+    if agent_extra:
+        agent_args += list(agent_extra)
     agent = subprocess.Popen(
         agent_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     )

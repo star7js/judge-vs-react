@@ -371,3 +371,115 @@ def test_s5_realmodel_boundary_sweep():
     commits = [round(r["decision_x"], 2) for r in rows]
     assert commits.count(8.94) == 51
     assert commits.count(9.01) == 12
+
+
+def test_delay_sweep_invariance():
+    # Eq. (sweep): expected clears from each sweep's own commit distribution
+    # match the observed 41/72 in both weathers, and a dense grid gives the
+    # F-independent limit (x_hi - w_lo)/v per seed (16.3 ticks) to within
+    # discretisation.
+    from eval.pit.analyze import delay_sweep_expectation
+    grid = [0, 4, 8, 12, 14, 15, 16, 17, 18, 20, 24, 31]
+    want = {"sonnet_boundary_sweep.jsonl": 41.8, "sonnet_boundary_sweep_fog1.jsonl": 41.3}
+    for fname, exp in want.items():
+        rows = _rows(os.path.join("..", "realmodel", fname))
+        e = delay_sweep_expectation(rows, grid, per_delay=6)
+        assert sum(r["cleared"] for r in rows) == 41
+        assert round(e["expected"], 1) == exp
+        assert abs(e["dense_expected"] - 101) <= 1.0 and round(e["dense_limit"], 1) == 98.1
+
+
+def test_clock_sweep():
+    # The judge's own latency through the boundary (clock-rate emulation):
+    # 72 episodes, no retries; 0/30 for tau <= 0.4 s, first clears at 0.5 s
+    # (r = 0.32), 18/18 for tau >= 1.5 s; 10 of the 11 failures between
+    # 0.5 and 1.0 s contain a >= 10 s call on a frame in [7.9, 8.4]; the
+    # deliberation stall: 70 such calls, median 13.6 s, 47 over 10 s, vs
+    # 1,878 others, median 2.6 s, 12 over 10 s; in-window frames JUMP 96/96.
+    import statistics
+    rows = _rows(os.path.join("..", "realmodel", "sonnet_clock_sweep.jsonl"))
+    assert len(rows) == 72 and sum(r["cleared"] for r in rows) == 31
+    assert sum(r["n_retried_calls"] for r in rows) == 0
+    assert all(r["effort"] == "high" for r in rows)
+    by_tau = {}
+    for r in rows:
+        by_tau.setdefault(r["clock_s"], []).append(r)
+    cleared = {round(t, 4): sum(x["cleared"] for x in g) for t, g in by_tau.items()}
+    assert cleared == {round(1 / 60, 4): 0, 0.1: 0, 0.2: 0, 0.3: 0, 0.4: 0, 0.5: 2, 0.6: 3,
+                       0.8: 5, 1.0: 3, 1.5: 6, 2.0: 6, 4.0: 6}
+    calls = [c for r in rows for c in r["call_log"]]
+    assert len(calls) == 1948
+    hot = [c[1] for c in calls if 7.9 <= c[0] <= 8.4]
+    cold = [c[1] for c in calls if not 7.9 <= c[0] <= 8.4]
+    assert (len(hot), len(cold)) == (70, 1878)
+    assert round(statistics.median(hot), 1) == 13.6 and round(statistics.median(cold), 1) == 2.6
+    assert (sum(h >= 10 for h in hot), sum(c >= 10 for c in cold)) == (47, 12)
+    assert round(max(hot), 1) == 32.4
+    inw = [c for c in calls if 8.921 <= c[0] <= 9.999]
+    assert len(inw) == 96 and all(c[3] == "jump" for c in inw)
+    fails = [r for r in rows if 0.5 <= r["clock_s"] <= 1.0 and not r["cleared"]]
+    stalled = [r for r in fails if any(7.9 <= c[0] <= 8.4 and c[1] >= 10 for c in r["call_log"])]
+    assert (len(fails), len(stalled)) == (11, 10)
+    # takeoff = judged frame + v * emulated delay, for every committed episode
+    for r in rows:
+        if r["judge_x"] is not None and r["decision_x"] > 0:
+            n = [c[2] for c in r["call_log"] if c[0] == r["judge_x"]][0]
+            assert abs(r["decision_x"] - (r["judge_x"] + 0.07 * n)) < 0.011
+
+
+def test_clock_sweep_low_effort():
+    # Same clock sweep at low effort: no stall (median 1.0 s, max 2.5 s on
+    # the [7.9, 8.4] frames), in-window JUMP 18/18, but 54% false JUMP on
+    # x in [7.5, 8.921) (233/429; 122/128 on [8.0, 8.5)), 58/72 early
+    # commits (every episode at tau >= 0.4 s), 8/72 cleared, all at
+    # tau = 0.1-0.3 s. High-effort band rate for comparison: 17/223.
+    import statistics
+    rows = _rows(os.path.join("..", "realmodel", "sonnet_clock_sweep_low.jsonl"))
+    assert len(rows) == 72 and sum(r["cleared"] for r in rows) == 8
+    assert all(r["effort"] == "low" for r in rows) and sum(r["n_retried_calls"] for r in rows) == 0
+    calls = [c for r in rows for c in r["call_log"]]
+    assert len(calls) == 3416
+    assert round(statistics.median(c[1] for c in calls), 1) == 1.0
+    assert max(c[1] for c in calls if 7.9 <= c[0] <= 8.4) < 2.6
+    inw = [c for c in calls if 8.921 <= c[0] <= 9.999]
+    assert len(inw) == 18 and all(c[3] == "jump" for c in inw)
+    band = [c for c in calls if 7.5 <= c[0] < 8.921]
+    assert (sum(c[3] == "jump" for c in band), len(band)) == (233, 429)
+    near = [c for c in band if 8.0 <= c[0] < 8.5]
+    assert (sum(c[3] == "jump" for c in near), len(near)) == (122, 128)
+    early = [r for r in rows if r["judge_x"] is not None and r["judge_x"] < 8.921]
+    assert len(early) == 58
+    assert all(r["judge_x"] is not None and r["judge_x"] < 8.921 for r in rows if r["clock_s"] >= 0.4)
+    assert {round(r["clock_s"], 2) for r in rows if r["cleared"]} == {0.1, 0.2, 0.3}
+    hi = _rows(os.path.join("..", "realmodel", "sonnet_clock_sweep.jsonl"))
+    hband = [c for r in hi for c in r["call_log"] if 7.5 <= c[0] < 8.921]
+    assert (sum(c[3] == "jump" for c in hband), len(hband)) == (17, 223)
+
+
+def test_haiku_boundary_sweep():
+    # A second judge through the same grid: Haiku 4.5 commits at 9.08
+    # (57/72), two ticks later than Sonnet; in-window commits clear 24/24
+    # through D = 14, 1/6 at D = 15, 0/31 from D = 16 (r* = 0.96); 11 early
+    # commits, 10 far-field (< 8.0) and unrescued, 1 at 8.73 rescued at
+    # D = 17; 26/72 cleared; Eq. (sweep) predicts 27.1; same landing rule.
+    from eval.pit.analyze import delay_sweep_expectation, ratio, transition_fit
+    rows = _rows(os.path.join("..", "realmodel", "haiku_boundary_sweep.jsonl"))
+    assert len(rows) == 72 and sum(r["cleared"] for r in rows) == 26
+    assert sum(r["n_calls"] for r in rows) == 6540
+    commits = {}
+    for r in rows:
+        commits[round(r["decision_x"], 2)] = commits.get(round(r["decision_x"], 2), 0) + 1
+    assert commits[9.08] == 57
+    inw = [r for r in rows if r["in_window"]]
+    assert len(inw) == 61
+    assert (sum(r["cleared"] for r in inw if r["delay"] <= 14), sum(1 for r in inw if r["delay"] <= 14)) == (24, 24)
+    assert (sum(r["cleared"] for r in inw if r["delay"] == 15), sum(1 for r in inw if r["delay"] == 15)) == (1, 6)
+    assert (sum(r["cleared"] for r in inw if r["delay"] >= 16), sum(1 for r in inw if r["delay"] >= 16)) == (0, 31)
+    fit = transition_fit([ratio(r, source="delay") for r in inw], [r["cleared"] for r in inw])
+    assert round(fit["r_star"], 2) == 0.96
+    early = [r for r in rows if not r["in_window"]]
+    assert len(early) == 11 and sum(r["decision_x"] < 8.0 for r in early) == 10
+    assert [(r["delay"], round(r["decision_x"], 2)) for r in early if r["cleared"]] == [(17, 8.73)]
+    assert all(r["cleared"] == (8.921 <= r["decision_x"] + 0.07 * r["delay"] <= 10.065) for r in rows)
+    e = delay_sweep_expectation(rows, [0, 4, 8, 12, 14, 15, 16, 17, 18, 20, 24, 31], per_delay=6)
+    assert round(e["expected"], 1) == 27.1

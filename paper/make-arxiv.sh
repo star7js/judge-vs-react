@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-FIGS=(fig_timing fig_edge fig_latency fig_flip fig_repeat fig_perception_v2 fig_aim fig_realmodel fig_realmodel_fog fig_firstpassage)
+FIGS=(fig_timing fig_edge fig_latency fig_flip fig_repeat fig_perception_v2 fig_aim fig_realmodel fig_realmodel_fog fig_firstpassage fig_clock fig_realmodel_haiku)
 
 rm -rf arxiv && mkdir -p arxiv/figures
 command cp judge-vs-react.tex arxiv/judge-vs-react.tex

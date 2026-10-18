@@ -17,7 +17,20 @@ control delay, versus 19 plus 22. Fog spread the judge's commit point from one
 tick to five and raised early commits from 9 to 35; the delay rescued most of
 the damage. All 144 episodes obey one rule: the episode clears iff the commit
 position plus the distance travelled during the delay lands in the window.
-Same score, different agents.
+Same score, different agents. A second, cheaper judge (Haiku 4.5) through the
+same grid commits two ticks later and its cliff moves by exactly two ticks
+(`r* = 0.96`); its early commits are far-field first-passage errors no delay
+can rescue, and it clears 26/72, as the same equation predicts from its
+commit distribution. Removing the delay knob and sweeping the clock
+instead, so that the judge's own latency is the delay, the same judge clears
+0/30 episodes until `r` falls below 1/3 (two consecutive JUMPs must fit the
+window) and 18/18 once the clock is slow enough; in between, 10 of 11
+failures are a single event, a 15–30 s deliberation on the frame just before
+the window, where the model answers in 2.6 s everywhere else. At low effort the stall is gone and the same frames
+are misjudged instead (54% false JUMP), so the judge commits early in 58/72
+episodes and clears 8/72. In real time the budget is the longest latency on
+the approach, the longest one falls on the hardest frame, and effort trades
+that stall for a first-passage failure on the same frames.
 
 The apparatus reduces an episode to one decision, labels it in- or
 out-of-window from the sim's own dynamics, and injects a control delay `D` so
@@ -82,11 +95,23 @@ the boundary are *delay-rescued misjudgments*. Around it:
   under fog: its commit point spreads over five ticks, 35/72 episodes commit
   early, the in-window boundary does not move, and 22 of the early commits are
   rescued by delay. Both sweeps score 41/72.
-- **Perception axis (§4.8).** Through the API, no model judges the depth cue
+- **A second judge (§4.8).** Haiku 4.5 through the same grid: a step at
+  `r* = 0.96`, two ticks earlier than Sonnet's because it commits two ticks
+  later; its early commits are far-field first-passage errors that no delay
+  can rescue; 26/72, as the sweep equation predicts from its commit
+  distribution.
+- **The judge's own latency through the boundary (§4.9).** With no injected
+  delay and the clock rate swept instead, the judge's real-time flip lands at
+  `r = 1/3`, the bound the two-consecutive commit rule implies, and the
+  failures between the regimes are a deliberation stall: 10–32 s calls on the
+  frame just before the window, against 2.6 s everywhere else. At low effort
+  the stall is gone and the same frames are misjudged instead: 58/72 early
+  commits, 8/72 cleared.
+- **Perception axis (§4.10).** Through the API, no model judges the depth cue
   unprompted; every model does once the prompt names it; fog then costs the
   smallest model most. An earlier subagent-judged pilot claiming unprompted
   depth reading is retracted.
-- **Latency axis (§4.9).** Five real vision models' decision latencies placed
+- **Latency axis (§4.11).** Five real vision models' decision latencies placed
   on the same axis: at this sim speed all are past the boundary, hosted
   frontier models at `r ≈ 4–6` and local open VLMs at `r ≈ 31–47`.
 - **Control (Appendix A).** Action-repeat adds polling delay and shifts the
@@ -238,7 +263,7 @@ committed jump is applied `D` ticks later, and sweeping `D ∈ {0..31}` sweeps
 `r = v·D/W` from 0 to 2, densely around `r = 1` (72 episodes; 6,612 vision
 calls).
 
-**Judge protocol.** The episode prompt used for the latency battery (§4.9)
+**Judge protocol.** The episode prompt used for the latency battery (§4.11)
 turns out never to elicit JUMP near the window from *any* hosted model: it
 describes the pit as "the black band across the floor ahead," which stops
 matching the close-range view — inside the window the pit is a black region
@@ -324,7 +349,7 @@ experiment.
 
 ### 4.7 The same judge through the boundary under fog — Fig. `fig_realmodel_fog.png`
 
-The single-frame battery of §4.8 says fog costs the cue-prompted Sonnet
+The single-frame battery of §4.10 says fog costs the cue-prompted Sonnet
 nothing per frame. The §4.4 judge's own battery under fog (108 approach frames
 × 3 samples at high effort) says it costs
 something per approach: the judge still fires on every in-window frame, but it
@@ -365,7 +390,174 @@ logistic fit even produces the smooth psychometric curve a benchmark would
 report (`r* = 1.07`, slope 14, against slope 409 for the in-window fit) — a
 curve that describes the mixture of correct and early commits, not the judge.
 
-### 4.8 Perception axis — Fig. `fig_perception_v2.png`
+**Why the two scores had to match.** The equality is not a coincidence. Let
+`F` be the distribution of the judge's commit position `x_c`; it does not
+depend on `D`, because the judge sees the same frames up to its commit and the
+delay only shifts the takeoff. Then
+
+> `P(clear | D) = F(x_hi − v·D) − F(w_lo − v·D)`, with `x_hi = w_hi + tol`,
+
+the probability that the delayed takeoff lands in the window. A sweep sums this
+over its delay grid. On a uniform grid of spacing `ΔD` that covers every delay
+at which some commit can land, the sum is a Riemann sum of
+`∫ [F(x_hi − vD) − F(w_lo − vD)] dD = (x_hi − w_lo)/v`, so the expected total is
+`(x_hi − w_lo)/(v·ΔD)` episodes per seed *for any* `F`: a delay-swept aggregate
+measures the width of the window, not the quality of the judge. Our 12-delay
+grid is not uniform, so the invariance is approximate there; evaluating the
+equation on each sweep's own commit distribution predicts 41.8 clears for clear
+weather and 41.3 for fog, against 41 and 41 observed, and on a dense one-tick
+grid both predict 101 ± 1 against the limit 6 × 16.3 = 98. The same equation
+explains the shape of the transition: a point-mass `F` gives a step in `D`, a
+spread `F` gives a smooth curve whose slope is the spread, and the pooled fog
+fit's slope of 14 is the width of the red histogram, not a property of the
+timing law.
+
+### 4.8 A second judge through the boundary — Fig. `fig_realmodel_haiku.png`
+
+The sweeps above are one judge. To see which of their results belong to the
+judge and which to the apparatus, we ran the §4.4 grid again with Haiku 4.5 as
+the judge: same prompt, same two-consecutive commit rule, same 12 delays × 6
+seeds, pit width 2, fog 0 (72 episodes, 6,540 calls). Haiku predates adaptive
+thinking, so it runs with a 2k-token thinking budget; its per-episode mean
+latency is 2.6 s. On the 108-frame battery it is a worse judge than Sonnet in
+the ways §4.10 predicts: it fires on every in-window frame except the first
+(`x = 8.94`, 0/3), and it fires early on scattered far-field frames
+(`x = 5.02, 6.49 (2/3), 7.12, 7.40, 8.66`) where Sonnet's rate was zero.
+
+**The step moves by exactly its commit offset.** Haiku commits at `x = 9.08`
+in 57/72 episodes, two ticks later than Sonnet's 8.94 (51/72), and its
+in-window boundary moves by exactly those two ticks: in-window commits clear
+**24/24 through `D = 14` (`r = 0.91`), 1/6 at `D = 15` and 0/31 from
+`D = 16`**; the logistic fit gives `r* = 0.96` against Sonnet's 1.05. At
+`D = 14` all six takeoffs land at `x = 10.06`, on the same-tick tolerance; at
+`D = 15` the five from 9.08 land at 10.13 and fall, and the one from 9.01
+lands at 10.06 and clears. This is the commit-offset term of the Discussion
+measured directly, `r* = (x_hi − x_c)/W`: a judge that commits two ticks later
+has a cliff two ticks earlier. The transition is a step for Haiku as it was
+for Sonnet, and every one of its 72 episodes obeys the same rule, cleared iff
+`w_lo ≤ x_c + v·D ≤ 10.06`.
+
+**Its errors are the first-passage kind.** Haiku commits early in 11/72
+episodes and Sonnet in 9/72, but the composition differs. Ten of Haiku's
+eleven are far-field false commits at `x = 6.49–7.47`, two to three tiles
+before the pit, where no delay on the grid can carry them into the window;
+one, at 8.73, is rescued at `D = 17`. Sonnet's nine were all in the tile
+before the window (8.10–8.24) and five were rescued. So Haiku's early commits
+are the §4.5 failure, a per-frame false-JUMP rate compounding over the
+approach, which no delay can compensate; Sonnet's were near-edge misjudgments
+that delay could. Haiku clears **26/72** to Sonnet's 41/72, and the sweep
+equation of §4.7 on Haiku's own commit distribution predicts 27.1: the lower
+score is the later commit (five clearing delays on the grid instead of six)
+plus ten unrescuable far-field commits, not a different timing law.
+
+### 4.9 The judge's own latency through the boundary — Fig. `fig_clock.png`
+
+Every sweep above injects the delay; the judge's real latency enters only
+through the placement of §4.11. Here we remove the knob. The same judge runs
+in an emulated real-time loop, and the only thing swept is how fast the world
+moves while it thinks. Each decision's measured wall-clock latency `L` is
+applied as its own delay of `round(L/τ)` ticks, where `τ` is the clock period
+(seconds of wall-clock per sim tick), and the judge is not shown another frame
+until it has answered. That is what a real-time loop running at `τ` per tick
+does, replayed in sim time so the sim stays deterministic and every call's
+latency is logged (retries are logged too; there were none). We swept `τ` from
+the sim's native 1/60 s, the regime §4.11 places models in, to 4 s per tick,
+which approaches blocking mode: 12 clock periods × 6 seeds, 72 episodes, 1,948
+vision calls, pit width 2, fog 0, the §4.4 judge unchanged (cue prompt, high
+effort, two-consecutive commit rule).
+
+**Prediction.** A judge sampled every `n` ticks that commits on its `k`-th
+consecutive in-window JUMP takes off at `x1 + k·v·n`, where `x1`, its first
+in-window sample, lies in `[w_lo, w_lo + v·n)`. It clears iff that takeoff is
+at most `x_hi`: in `r = v·n/W`, iff `r ≤ 1/k` at the best sampling phase and
+`r ≤ 1/(k+1)` at the worst. This judge has `k = 2`, so its real-time flip
+should sit in `r ∈ [1/3, 1/2]`, not at the injected-delay boundary `r ≈ 1`: in
+real time the window must hold the latency `k` times plus the phase of the
+next sample. The injected-delay boundary is the best case.
+
+| τ (s/tick) | window (s) | high: calls/ep | n | r | cleared | low: calls/ep | n | r | cleared |
+|---|---|---|---|---|---|---|---|---|---|
+| 1/60 | 0.3 | 1 | 168 | 10.9 | 0/6 | 2 | 63 | 4.11 | 0/6 |
+| 0.1 | 1.6 | 4 | 29 | 1.87 | 0/6 | 11 | 10 | 0.65 | 3/6 |
+| 0.2 | 3.3 | 7 | 14 | 0.91 | 0/6 | 20 | 5 | 0.32 | 4/6 |
+| 0.3 | 4.9 | 10 | 9 | 0.58 | 0/6 | 27 | 3 | 0.19 | 1/6 |
+| 0.4 | 6.5 | 14 | 7 | 0.45 | 0/6 | 36 | 2 | 0.13 | 0/6 |
+| 0.5 | 8.2 | 16 | 5 | 0.32 | 2/6 | 40 | 2 | 0.13 | 0/6 |
+| 0.6 | 9.8 | 17 | 5 | 0.32 | 3/6 | 47 | 2 | 0.13 | 0/6 |
+| 0.8 | 13.0 | 26 | 3 | 0.19 | 5/6 | 71 | 1 | 0.06 | 0/6 |
+| 1.0 | 16.3 | 32 | 3 | 0.19 | 3/6 | 78 | 1 | 0.06 | 0/6 |
+| 1.5 | 24.5 | 41 | 2 | 0.13 | 6/6 | 78 | 1 | 0.06 | 0/6 |
+| 2.0 | 32.6 | 73 | 1 | 0.06 | 6/6 | 79 | 1 | 0.06 | 0/6 |
+| 4.0 | 65.2 | 84 | 1 | 0.06 | 6/6 | 80 | 1 | 0.06 | 0/6 |
+
+(`τ` is the wall-clock period of one sim tick; the window is open for `16.3·τ`
+seconds of wall-clock; `n` is the median emulated delay in ticks; "high" is the
+§4.4 judge, "low" the same prompt at low effort; six seeds per cell.)
+
+**The flip lands where the commit rule says.** At the native clock the window
+is open for 0.3 s of wall-clock, the judge gets one call per episode
+(`r ≈ 11`) and never commits: 0/6. Nothing clears through `τ = 0.4` s
+(**0/30 for `r ≥ 0.45`**); the first clears come at `τ = 0.5` s, `r = 0.32`,
+the worst-phase bound 1/3; and once the clock is slow enough, `τ ≥ 1.5` s
+(`r ≤ 0.13`), the same judge clears **18/18**. The injected-delay sweep put
+this judge's cliff at `r = 1.05`; with its own latency in the loop the cliff
+is at a third of that, as the arithmetic requires, and the §4.11 placement of
+"`r ≈ 4–6`" for hosted models understates the real-time deficit by the same
+factor.
+
+**The deliberation stall.** Between those regimes, `τ = 0.5` to 1.0 s, the
+judge clears 13/24, and 10 of the 11 failures are one event. Per-call latency
+is not a constant of the model (figure, right panel). Outside
+`x ∈ [7.9, 8.4]` the 1,878 calls have median 2.6 s and 90th percentile 3.4 s;
+the 70 calls on frames in `[7.9, 8.4]` have median 13.6 s, 90th percentile
+25.9 s and maximum 32.4 s, and 47 of them exceed 10 s against 12 of 1,878
+elsewhere. Those are the frames where the pit's black band approaches, but
+does not yet touch, the bottom edge — the hardest discrimination the prompt
+asks for. Three probe calls on the `x = 8.10` frame returned 273–722 output
+tokens in 6.6–16.2 s with stop reason `end_turn`, against 107–124 tokens in
+2.4–2.9 s at `x = 8.94`: adaptive thinking deliberates on the ambiguous frame
+and finishes on its own, well short of the token cap. In blocking mode that
+costs patience. In real time the agent keeps walking: at `τ = 1` s the window
+is 16 s of wall-clock and a 30 s deliberation on the 8.1 frame carries the
+agent from 8.1 to past the pit's edge before it answers. Ten of the eleven
+failures between `τ = 0.5` and 1.0 s contain such a call (≥ 10 s on a frame
+in `[7.9, 8.4]`), after which the next sample is at `x ≥ 9.85` or in the pit.
+The judge is not wrong on those episodes — in-window frames drew JUMP on 96/96
+calls across the sweep — it is late because it was careful, on exactly the
+frame before the decision.
+
+The real-time budget is therefore set by the longest latency on the approach,
+not the median, and the longest one falls on the frame the judge finds
+hardest, which is the one just before the window opens. A table of median
+latencies understates a real-time `r` by the ratio of the deliberation to the
+median, here about 5×.
+
+**Taking the deliberation away.** If the stall is the price of care, a less
+careful judge should not stall. We ran the same sweep with the same prompt at
+low effort (72 episodes, 3,416 calls; table right, red in the figure). The
+stall is gone: latency is 1.0 s at the median everywhere, 1.3 s at the 90th
+percentile, and the maximum on the `[7.9, 8.4]` frames is 2.5 s. So is the
+judgment. In-window frames still draw JUMP (18/18), but on the frames between
+`x = 7.5` and the window's edge the low-effort judge answers JUMP 54% of the
+time (233/429; on `x ∈ [8.0, 8.5)`, 122/128), against 7.6% for the high-effort
+judge on the same frames. The frames that stall the careful judge are the
+frames that fool the fast one. With a 54% false-JUMP rate on the approach band
+and a two-consecutive commit rule, §4.5 says the judge commits early almost
+surely once it gets more than a handful of looks at that band, and it does:
+58/72 episodes commit before the window, every episode at `τ ≥ 0.4` s, and the
+sweep clears **8/72**. The two-state chain with the band rate and the band's
+calls per episode predicts 48 early commits; the residual is clustering within
+the band (36/36 JUMPs at `x ≈ 8.25`), the dependence the first-passage model
+assumes away. The only clears are at `τ = 0.1–0.3` s (8/18), where the clock
+is fast enough that the judge sees the band only two to four times and slow
+enough that its 1 s latency fits the window (`r = 0.2–0.65`): a narrow band
+where the first-passage term and the timing term, which pull in opposite
+directions as the clock changes, both happen to be survivable. Effort does not
+move the judge along the timing axis; it trades the stall for the
+first-passage failure, and in real time neither judge is viable at the native
+clock.
+
+### 4.10 Perception axis — Fig. `fig_perception_v2.png`
 
 Does a vision model judge this jump from a single frame? We measured it
 through the API, blind, on a balanced battery. For each fog level we render
@@ -436,7 +628,7 @@ its per-frame accuracy at fog 0 is the 91% cell above with the effort raised;
 fatal in closed loop, and §4.7 is that judge taken through the boundary under
 fog.
 
-### 4.9 Placing real models' latency on the axis — Fig. `fig_latency.png`
+### 4.11 Placing real models' latency on the axis — Fig. `fig_latency.png`
 
 `r = L / T_window` places a measured decision latency on the same axis. At pit
 width 2 and `v = 0.07` tiles/tick the window is open for
@@ -451,7 +643,7 @@ quantity to report, and a deployment moves it by pausing or slowing the world
 as readily as by cutting latency. Two caveats on the measurement. These are
 time-to-answer numbers, not judgments: in the fast configuration the hosted
 models answered WAIT on nearly every frame (Haiku and Sonnet 20/20, Opus 18/20; the
-unprompted default of §4.8) and the local models JUMP on nearly every frame; a configuration that
+unprompted default of §4.10) and the local models JUMP on nearly every frame; a configuration that
 discriminates (the §4.4 judge, ~5 s/call) is slower, so these `r` values are
 lower bounds. And each local model's first call is an order of magnitude faster
 than the rest (0.4–0.6 s against 8–12 s), consistent with a warm cache; the
@@ -497,17 +689,15 @@ approach.
 
 ## 6. Limitations
 
-- **The real-model sweeps (§4.4, §4.7) are one model at one pit width, at two
-  fog levels.** Its
-  judge uses a revised prompt (the latency-battery prompt elicits no JUMPs near
-  the window from any hosted model) plus a two-consecutive-JUMP commit rule,
-  developed against and validated on the same 108 approach frames the sweep
-  draws from — a judge tuned to this scene, and a documented apparatus change,
-  not the shipped default. Its `r` axis is engineered by injected delay with
-  the model's judgment in the loop; the model's own wall-clock latency
-  (~5 s/call at high effort) remains far past `r*`, so a wall-clock-real sweep
-  is still impossible for the measured field — that is §4.9's point, not a
-  gap. The anticipated *noisy* psychometric curve did not materialize in either
+- **The real-model sweeps (§4.4, §4.7, §4.8) are two models at one pit width,
+  at two fog levels.** Both judges use a revised prompt (the latency-battery
+  prompt elicits no JUMPs near the window from any hosted model) plus a
+  two-consecutive-JUMP commit rule, developed against and validated on the
+  same 108 approach frames the sweep draws from — a judge tuned to this
+  scene, and a documented apparatus change, not the shipped default. Their
+  `r` axis is engineered by injected delay with the model's judgment in the
+  loop; §4.9 puts the judge's own latency in the loop, but in an emulated
+  loop and for Sonnet only. The anticipated *noisy* psychometric curve did not materialize in either
   sweep: fog spread the commit point, but mostly *before* the window, and
   outcome is a deterministic function of commit position and delay, so the
   in-window transition stayed a step. A smooth in-window curve needs a judge
@@ -524,7 +714,7 @@ approach.
   per-frame rates they are evaluated at come from earlier prompt versions, not
   from the final judge (whose far-field rate on the battery was zero in 237
   samples).
-- **The perception axis (§4.8) is one scene, two prompts, three hosted models at
+- **The perception axis (§4.10) is one scene, two prompts, three hosted models at
   medium effort and one local 7B model.** The cue prompt is the §4.4 judge's, so the cue-arm numbers
   are that judge's single-frame accuracy at a lower effort than the sweep
   used; a prompt that named a different cue, or a scene without a pixel-sharp
@@ -532,6 +722,11 @@ approach.
   coordinates and labels but not to the task. The local model's chance result
   is an instruction-following failure (a constant answer), not a measurement
   of its depth perception.
+- **The real-time loop of §4.9 is emulated.** Each call's measured latency is
+  replayed as ticks of delay in a deterministic sim; there is no render
+  jitter, no dropped frame, and the sim never lags. It is the real latency in
+  the loop, but a real-time implementation would be at least this bad, not
+  better.
 - **The latency battery measures time-to-answer, not judgment, at one
   arbitrary sim speed.** In the fast configuration the hosted models answered
   WAIT on nearly every frame; a configuration that discriminates is slower, so
@@ -569,8 +764,10 @@ Action-repeat is a compute/cost lever, not a latency fix.
 - `../eval/pit/figures/fig_realmodel.png` — §4.4, Sonnet 4.6 swept through the boundary in closed loop (r*=1.05; 32/32 below, 0/26 above; early decisions fail below the boundary and are the only survivors past it; data + driver in `../eval/pit/realmodel/`).
 - `../eval/pit/figures/fig_realmodel_fog.png` — §4.7, the same judge swept through the boundary in clear weather and fog (in-window r* 1.05 vs 1.01; commit-point histograms; 35/72 early commits under fog, 22 rescued).
 - `../eval/pit/figures/fig_firstpassage.png` — §4.5, the final judge's per-frame JUMP rate on all 108 approach frames, and the probability that a per-frame false-JUMP rate fires somewhere over the 90-frame approach under single-JUMP vs. two-consecutive commit rules.
-- `../eval/pit/figures/fig_perception_v2.png` — §4.7, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models + local Qwen2.5-VL 7B, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
-- `../eval/pit/figures/fig_latency.png` — §4.8, real per-model decision latency vs. the time budget at this sim speed, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms budget.
+- `../eval/pit/figures/fig_realmodel_haiku.png` — §4.8, two judges through the same grid (Sonnet 4.6 vs Haiku 4.5): in-window fits r* 1.05 vs 0.96, commit histograms, far-field early commits.
+- `../eval/pit/figures/fig_clock.png` — §4.9, the judge's own latency through the boundary: outcome vs r from emulated real-time delay, fraction cleared per clock period, and per-call latency vs frame position (the deliberation stall on x ∈ [7.9, 8.4]); the low-effort sweep overlaid in red.
+- `../eval/pit/figures/fig_perception_v2.png` — §4.10, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models + local Qwen2.5-VL 7B, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
+- `../eval/pit/figures/fig_latency.png` — §4.11, real per-model decision latency vs. the time budget at this sim speed, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms budget.
 - `../eval/pit/figures/fig_repeat.png` — Appendix A, action-repeat control.
 
 Perception data + method: `../eval/pit/data/perception_judgments_v2.jsonl`
@@ -591,5 +788,5 @@ JUMP/WAIT call per frame, each model's fastest single-call config) and
 Reproduce the local models with `pit_agent.py --backend ollama --model <vlm>`
 (no API key). Note: the fast single-call config is a *latency* measurement; the
 hosted models default to WAIT in it (so it is not a fair perception config — the
-perception numbers in §4.8 come from the deliberate blind-judge setup).
+perception numbers in §4.10 come from the deliberate blind-judge setup).
 - Demo: `../raycaster/demo/ai_clears_pit.mp4`, `../raycaster/demo/ai_misses_pit_latency.mp4`.
