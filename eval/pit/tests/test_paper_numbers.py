@@ -454,3 +454,32 @@ def test_clock_sweep_low_effort():
     hi = _rows(os.path.join("..", "realmodel", "sonnet_clock_sweep.jsonl"))
     hband = [c for r in hi for c in r["call_log"] if 7.5 <= c[0] < 8.921]
     assert (sum(c[3] == "jump" for c in hband), len(hband)) == (17, 223)
+
+
+def test_haiku_boundary_sweep():
+    # A second judge through the same grid: Haiku 4.5 commits at 9.08
+    # (57/72), two ticks later than Sonnet; in-window commits clear 24/24
+    # through D = 14, 1/6 at D = 15, 0/31 from D = 16 (r* = 0.96); 11 early
+    # commits, 10 far-field (< 8.0) and unrescued, 1 at 8.73 rescued at
+    # D = 17; 26/72 cleared; Eq. (sweep) predicts 27.1; same landing rule.
+    from eval.pit.analyze import delay_sweep_expectation, ratio, transition_fit
+    rows = _rows(os.path.join("..", "realmodel", "haiku_boundary_sweep.jsonl"))
+    assert len(rows) == 72 and sum(r["cleared"] for r in rows) == 26
+    assert sum(r["n_calls"] for r in rows) == 6540
+    commits = {}
+    for r in rows:
+        commits[round(r["decision_x"], 2)] = commits.get(round(r["decision_x"], 2), 0) + 1
+    assert commits[9.08] == 57
+    inw = [r for r in rows if r["in_window"]]
+    assert len(inw) == 61
+    assert (sum(r["cleared"] for r in inw if r["delay"] <= 14), sum(1 for r in inw if r["delay"] <= 14)) == (24, 24)
+    assert (sum(r["cleared"] for r in inw if r["delay"] == 15), sum(1 for r in inw if r["delay"] == 15)) == (1, 6)
+    assert (sum(r["cleared"] for r in inw if r["delay"] >= 16), sum(1 for r in inw if r["delay"] >= 16)) == (0, 31)
+    fit = transition_fit([ratio(r, source="delay") for r in inw], [r["cleared"] for r in inw])
+    assert round(fit["r_star"], 2) == 0.96
+    early = [r for r in rows if not r["in_window"]]
+    assert len(early) == 11 and sum(r["decision_x"] < 8.0 for r in early) == 10
+    assert [(r["delay"], round(r["decision_x"], 2)) for r in early if r["cleared"]] == [(17, 8.73)]
+    assert all(r["cleared"] == (8.921 <= r["decision_x"] + 0.07 * r["delay"] <= 10.065) for r in rows)
+    e = delay_sweep_expectation(rows, [0, 4, 8, 12, 14, 15, 16, 17, 18, 20, 24, 31], per_delay=6)
+    assert round(e["expected"], 1) == 27.1

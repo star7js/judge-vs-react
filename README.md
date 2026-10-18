@@ -35,6 +35,11 @@ The judgment never changed; only the clock did.
   commits are rescued by delay, and both sweeps clear exactly 41/72 with
   opposite composition (36+5 vs 19+22). An aggregate score cannot tell them
   apart.
+- **A second judge:** Haiku 4.5 through the same grid commits two ticks
+  later than Sonnet and its cliff moves by exactly two ticks (`r* = 0.96` vs
+  1.05, 24/24 then 0/31); its early commits are far-field first-passage
+  errors no delay can rescue; 26/72, as the sweep equation predicts from its
+  commit distribution.
 - **The judge's own latency through the boundary:** with no injected delay
   and the sim's clock rate swept instead, so that each decision's real
   latency is its own delay, the same judge clears 0/30 until `r < 1/3` (two

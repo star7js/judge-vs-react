@@ -170,6 +170,13 @@ survivors are the episodes that judged *wrong*. The two failure axes don't just
 separate — on opposite sides of the line they cancel, and an aggregate score
 can't see it happening.
 
+We also ran a cheaper judge, Haiku, through the same grid. It commits two
+frames later than Sonnet, and its cliff sits exactly two frames earlier,
+which is what the arithmetic says it should. Its mistakes are different in
+kind, though: where Sonnet's early jumps were a frame or two before the window
+and lag could rescue them, Haiku's were two to three tiles out, the per-frame
+false alarm compounding over the approach, and no lag reaches those.
+
 Then we fogged the world and ran the same 72 episodes again. The judge got
 worse in exactly the way you'd hope to measure: instead of committing at the
 same spot every time, it spread over five frames, and jumped early in 35

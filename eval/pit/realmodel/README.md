@@ -17,7 +17,9 @@ which 5 are delay-rescued.
 | `sonnet_boundary_sweep_fog1.jsonl` | The same 72-episode grid at fog 1 (`boundary_sweep.py --fog 1.0`): commit point spreads over five ticks, 35/72 early, in-window r* = 1.01, 22 early commits delay-rescued, 41/72 cleared. |
 | `battery_fog.py` | Renders the 108 tick-grid approach frames at a chosen fog and runs the S5 judge on them; the gate before a fog sweep. |
 | `battery_v4_high_fog1.json` | The final judge at fog 1: 108 frames × 3 samples (far-field false JUMP at 2.85, early JUMPs 8.38–8.87, two non-unanimous in-window frames). |
-| `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL, and `fig_realmodel_fog.png` (clear vs fog comparison + commit histograms) when the fog sweep exists. |
+| `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL, `fig_realmodel_fog.png` (clear vs fog) when the fog sweep exists, and `fig_realmodel_haiku.png` (Sonnet vs Haiku) when the Haiku sweep exists. |
+| `haiku_boundary_sweep.jsonl` | The same 72-episode grid with Haiku 4.5 as the judge (`boundary_sweep.py --model claude-haiku-4-5-20251001`): commits at 9.08 (57/72), in-window r* = 0.96, 10 far-field early commits, 26/72. |
+| `battery_v4_high_fog0_haiku.json` | Haiku 4.5 on the 108 frames × 3 samples (the gate before its sweep): far-field false JUMPs at 5.02–8.66, first in-window frame 0/3. |
 | `sonnet_clock_sweep.jsonl` | Clock-rate sweep (`clock_sweep.py`): the same judge in an emulated real-time loop, 12 clock periods × 6 seeds, each call's measured latency replayed as its own delay. 31/72 cleared; flip at r = 1/3; deliberation stall on x ∈ [7.9, 8.4]. Rows carry `clock_s`, `effort`, `judge_x`, `delay_ticks_median`, and a per-call `call_log` of [px, latency_s, delay_ticks, raw answer, committed action, retries]. |
 | `sonnet_clock_sweep_low.jsonl` | The same clock-rate sweep at low effort (`clock_sweep.py --effort low`): no stall (1.0 s flat) but 54% false JUMP on x ∈ [7.5, 8.92), 58/72 early commits, 8/72 cleared. |
 | `clock_sweep.py` | Driver for the clock-rate sweep (`--effort`, `--clocks`, `--backend rules --latency` for a free self-test). |

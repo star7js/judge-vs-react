@@ -39,7 +39,11 @@ window by the control delay, versus 19 plus 22. Fog spread the judge's commit
 point from one tick to five and raised early commits from 9 to 35; the delay
 rescued most of the damage. All 144 episodes obey one rule: the episode
 clears iff the commit position plus the distance travelled during the delay
-lands in the window. Same score, different agents. Removing the delay knob
+lands in the window. Same score, different agents. A second, cheaper judge
+(Haiku~4.5) through the same grid commits two ticks later and its cliff
+moves by exactly two ticks ($\rstar = 0.96$); its early commits are
+far-field first-passage errors no delay can rescue, and it clears 26/72, as
+the same equation predicts from its commit distribution. Removing the delay knob
 and sweeping the clock instead, so that the judge's own latency is the
 delay, the same judge clears 0/30 episodes until $r$ falls below $1/3$ (two
 consecutive JUMPs must fit the window) and 18/18 once the clock is slow
@@ -122,6 +126,11 @@ it:
     through the boundary under fog: its commit point spreads over five ticks,
     35/72 episodes commit early, the in-window boundary does not move, and 22
     of the early commits are rescued by delay. Both sweeps score 41/72.
+  \item \textbf{A second judge (\S\ref{sec:haiku}).} Haiku~4.5 through
+    the same grid: a step at $\rstar = 0.96$, two ticks earlier than
+    Sonnet's because it commits two ticks later; its early commits are
+    far-field first-passage errors that no delay can rescue; 26/72, as
+    Eq.~\ref{eq:sweep} predicts from its commit distribution.
   \item \textbf{The judge's own latency through the boundary
     (\S\ref{sec:clock}).} With no injected delay and the clock rate swept
     instead, the judge's real-time flip lands at $r = 1/3$, the bound the
@@ -535,6 +544,61 @@ Fig.~\ref{fig:fog}, not a property of the timing law.
   \label{fig:fog}
 \end{figure}
 
+\subsection{A second judge through the boundary}\label{sec:haiku}
+
+The sweeps above are one judge. To see which of their results belong to the
+judge and which to the apparatus, we ran the \S\ref{sec:real} grid again
+with Haiku~4.5 as the judge: same prompt, same two-consecutive commit rule,
+same 12 delays $\times$ 6 seeds, pit width 2, fog 0 (72 episodes, 6{,}540
+calls). Haiku predates adaptive thinking, so it runs with a 2k-token
+thinking budget; its per-episode mean latency is 2.6\,s. On the 108-frame
+battery it is a worse judge than Sonnet in the ways \S\ref{sec:perception}
+predicts: it fires on every in-window frame except the first ($x = 8.94$,
+0/3), and it fires early on scattered far-field frames ($x = 5.02$, $6.49$
+(2/3), $7.12$, $7.40$, $8.66$) where Sonnet's rate was zero
+(Fig.~\ref{fig:haiku}).
+
+\paragraph{The step moves by exactly its commit offset.} Haiku commits at
+$x = 9.08$ in 57/72 episodes, two ticks later than Sonnet's $8.94$ (51/72),
+and its in-window boundary moves by exactly those two ticks: in-window
+commits clear \textbf{24/24 through $D = 14$ ($r = 0.91$), 1/6 at $D = 15$
+and 0/31 from $D = 16$}; the logistic fit gives $\rstar = 0.96$ against
+Sonnet's $1.05$. At $D = 14$ all six takeoffs land at $x = 10.06$, on the
+same-tick tolerance; at $D = 15$ the five from $9.08$ land at $10.13$ and
+fall, and the one from $9.01$ lands at $10.06$ and clears. This is the
+commit-offset term of the Discussion measured directly, $\rstar = (x_{hi} -
+x_c)/W$: a judge that commits two ticks later has a cliff two ticks
+earlier. The transition is a step for Haiku as it was for Sonnet, and every
+one of its 72 episodes obeys the same rule, cleared iff
+$w_{lo} \le x_c + vD \le 10.06$.
+
+\paragraph{Its errors are the first-passage kind.} Haiku commits early in
+11/72 episodes and Sonnet in 9/72, but the composition differs. Ten of
+Haiku's eleven are far-field false commits at $x = 6.49$--$7.47$, two to
+three tiles before the pit, where no delay on the grid can carry them into
+the window; one, at $8.73$, is rescued at $D = 17$. Sonnet's nine were all
+in the tile before the window ($8.10$--$8.24$) and five were rescued. So
+Haiku's early commits are the \S\ref{sec:firstpassage} failure, a per-frame
+false-JUMP rate compounding over the approach, which no delay can
+compensate; Sonnet's were near-edge misjudgments that delay could. Haiku
+clears \textbf{26/72} to Sonnet's 41/72, and Eq.~\ref{eq:sweep} on Haiku's
+own commit distribution predicts 27.1: the lower score is the later commit
+(five clearing delays on the grid instead of six) plus ten unrescuable
+far-field commits, not a different timing law.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.98\linewidth]{fig_realmodel_haiku.png}
+  \caption{Two judges through the same grid in clear weather: Sonnet~4.6
+  (blue) and Haiku~4.5 (red). Left: outcome vs.\ $r$; dots are in-window
+  commits with their logistic fits ($\rstar = 1.05$ and $0.96$), crosses
+  early commits. Right: commit-position histograms; Haiku's mode is two
+  ticks later than Sonnet's, which is the whole of the difference in
+  $\rstar$, and its early commits sit two to three tiles before the pit,
+  where no delay can rescue them.}
+  \label{fig:haiku}
+\end{figure}
+
 \subsection{The judge's own latency through the boundary}\label{sec:clock}
 
 Every sweep above injects the delay; the judge's real latency enters only
@@ -856,16 +920,16 @@ zero per frame does not round to zero per approach.
 \section{Limitations}
 
 \begin{itemize}
-  \item \textbf{The real-model sweeps (\S\ref{sec:real}, \S\ref{sec:fog})
-    are one model at one pit width, at two fog levels.} Its judge uses a revised prompt (the latency-battery
-    prompt elicits no JUMPs near the window from any hosted model) plus a
+  \item \textbf{The real-model sweeps (\S\ref{sec:real}, \S\ref{sec:fog},
+    \S\ref{sec:haiku}) are two models at one pit width, at two fog
+    levels.} Both judges use a revised prompt (the latency-battery prompt
+    elicits no JUMPs near the window from any hosted model) plus a
     two-consecutive-JUMP commit rule, developed against and validated on the
     same 108 approach frames the sweep draws from --- a judge tuned to this
-    scene, and a documented apparatus change, not the shipped default. Its $r$
-    axis is engineered by injected delay with the model's judgment in the
-    loop; the model's own wall-clock latency ($\sim$5\,s/call at high effort)
-    remains far past $\rstar$, so a wall-clock-real sweep is still impossible
-    for the measured field --- that is \S\ref{sec:latency}'s point, not a gap.
+    scene, and a documented apparatus change, not the shipped default. Their
+    $r$ axis is engineered by injected delay with the model's judgment in the
+    loop; \S\ref{sec:clock} puts the judge's own latency in the loop, but in
+    an emulated loop and for Sonnet only.
     The anticipated \emph{noisy} psychometric curve did not materialize in
     either sweep: fog spread the commit point, but mostly \emph{before} the
     window, and outcome is a deterministic function of commit position and
