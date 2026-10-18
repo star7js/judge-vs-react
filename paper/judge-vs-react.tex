@@ -28,47 +28,42 @@
 \maketitle
 
 \begin{abstract}
-A vision-language-model (VLM) agent that must time a single action in a
-first-person scene can fail two ways that existing game benchmarks cannot pull
-apart: it can misjudge the scene (perception), or judge correctly but act too
-late (timing). We build a minimal, deterministic first-person pit-jump task that
-reduces an episode to one decision, labels each decision in- or out-of-window
-from the sim's own dynamics, and injects a control delay $D$ so that lateness
-varies independently of judgment. In the dimensionless coordinate $r = vD/W$
-(distance travelled during the delay over window width), a policy that fires at
-the window's leading edge clears iff $r < 1$ by construction; oracle sweeps on
-the pit ($\rstar = 1.04$, the edge bracketed within one tick of delay at every
-pit width) and on a second rotational-aiming task ($\rstar = 0.98$) confirm that the
-apparatus reproduces this, and serve as calibration rather than as an empirical
-law. The main result is a \textbf{real model swept through that boundary}: a
-closed-loop Sonnet~4.6 agent, judging every frame itself, clears \textbf{32/32}
-in-window decisions below $r \approx 1$ and \textbf{0/26} above it
-($\rstar = 1.05$), with nothing varied but the injected delay --- the same
-correct decision succeeds paused and fails late. Past the boundary its
-\emph{only} surviving episodes are ones that misjudged early, their perception
-error cancelled by the delay: the two failure axes compensate, which an
-aggregate score cannot see. The real judge also exposes two things a
-single-frame benchmark cannot: a per-frame judge is a first-passage process,
-so a 1--2\% per-frame false-JUMP rate fires almost surely somewhere over the
-$\sim$90-frame approach unless a commit rule suppresses it; and its commit
-point is nearly deterministic (63/72 in-window decisions within one tick), so
-the real transition is a step, not a psychometric curve. Under fog the same
-judge's commit point spreads over five ticks and 35/72 episodes commit early;
-the in-window boundary is unchanged ($\rstar = 1.01$), 22 of the early
-commits are rescued by the delay, and both sweeps clear exactly 41/72 with
-opposite composition --- an aggregate score cannot tell them apart. On the
-perception axis, measured through the API on a balanced 100-frame battery, no hosted
-model judges the depth cue unprompted (all at chance), every model does once
-the prompt names the cue (91--99\%), and fog then degrades the smallest model
-most (Haiku 97\% to 68\%): perception of this scene is a property of the
-prompt, and capability shows up as robustness of the cued reading. Measuring five real vision models' decision
-latency against the task's 257\,ms window, \textbf{all land past the boundary}
---- hosted frontier models at $r \approx 4$--$6$, local open VLMs at
-$r \approx 31$--$47$ --- so none can act inside the window in real time, yet the
-same decisions succeed when the world is paused. Pausable/turn-based deployment
-converts a slow-but-accurate VLM from failing to viable, and ``VLMs are too slow
-to play games'' is partly an artifact of the time regime they are benchmarked
-in.
+A vision-language-model (VLM) agent that must time one action in a
+first-person scene can fail two ways that aggregate game scores cannot pull
+apart: misjudge the scene, or judge correctly and act too late. We show the
+conflation concretely. A closed-loop Sonnet~4.6 agent, judging every frame of
+a deterministic first-person pit-jump task itself, clears \textbf{41/72}
+episodes in clear weather and \textbf{41/72} under fog, for opposite reasons:
+36 correct in-window decisions plus 5 early misjudgements carried into the
+window by the control delay, versus 19 plus 22. Fog spread the judge's commit
+point from one tick to five and raised early commits from 9 to 35; the delay
+rescued most of the damage. All 144 episodes obey one rule: the episode
+clears iff the commit position plus the distance travelled during the delay
+lands in the window. Same score, different agents.
+
+The apparatus reduces an episode to one decision, labels it in- or
+out-of-window from the sim's own dynamics, and injects a control delay $D$ so
+that lateness varies independently of judgment. In the coordinate $r = vD/W$
+a leading-edge policy clears iff $r < 1$ by construction; oracle sweeps
+($\rstar = 1.04$ on the pit, $0.98$ on an aiming task) confirm that the
+apparatus reproduces this and serve as calibration, not as a law. Swept
+through that boundary, the same Sonnet agent clears \textbf{32/32} in-window
+decisions below $r \approx 1$ and \textbf{0/26} above it ($\rstar = 1.05$)
+with nothing varied but the delay. Its commit point is nearly deterministic
+(63/72 within one tick), so the transition is a step, not a psychometric
+curve, and because it is asked on every one of $\sim$90 approach frames, a
+1--2\% per-frame false-JUMP rate fires almost surely somewhere unless a
+commit rule suppresses it.
+
+On a balanced 100-frame perception battery through the API, no model judges
+the depth cue unprompted; every hosted model does once the prompt names it
+(91--99\%), fog then costs the smallest most (Haiku 97\% to 68\%), and a
+local 7B model answers constantly either way: perception of this scene is a
+property of the prompt. Five real models' decision latencies all exceed the
+task's 257\,ms window ($r \approx 4$--$47$), so none can act in time in real
+time, yet the same decisions succeed paused. ``VLMs are too slow to play
+games'' is partly an artifact of the time regime they are benchmarked in, and
+an aggregate score cannot tell a good judge from a lucky one.
 \end{abstract}
 
 \section{Introduction}
