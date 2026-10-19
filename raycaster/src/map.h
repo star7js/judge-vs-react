@@ -13,6 +13,10 @@
 // without floor sprites.
 #define TILE_EXIT 9
 
+// Special wall type: the aim task's target, a single loud-colored wall tile
+// the player must have under the crosshair when the shot lands.
+#define TILE_TARGET 8
+
 // Floor tile types (separate layer from walls).
 #define FLOOR_NORMAL 0
 #define FLOOR_PIT    1   // a hole — you fall in if you're on it un-jumped
@@ -46,6 +50,13 @@ void map_load_test(Map *map);
 // [pit_near, pit_near+pit_width) and an exit beacon placed a fixed gap past
 // the far edge of the pit.
 void map_load_pit(Map *map, PitConfig cfg);
+
+// The aim scene: the same 24x11 room with no pit, one TILE_TARGET tile in the
+// far (y = 0) wall at column target_x, and the player standing in the middle
+// of the room directly below it, so the tile's face spans x in [target_x,
+// target_x+1] at y = 1, seen from (target_x + 0.5, AIM_PLAYER_Y).
+#define AIM_PLAYER_Y 9.5f
+void map_load_aim(Map *map, int target_x);
 
 static inline int map_is_solid(const Map *map, int x, int y)
 {

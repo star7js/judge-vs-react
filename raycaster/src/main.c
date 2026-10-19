@@ -267,6 +267,65 @@ static int agent_decide(void *ctx_, int tick, float px, float py,
     return (a == 1) ? 1 : 0;
 }
 
+// The aim scene's target column (map_load_aim) and the run-up (rad) from the
+// window's center to the starting aim angle: 0.5 rad at omega = 0.01 is ~44
+// ticks to the near edge, the same order as the pit's ~90-frame approach.
+#define AIM_TARGET_X 12
+#define AIM_RUN_UP   0.5f
+
+// Render the aim scene at aim angle `a` (player fixed at the spawn, rotating
+// in place) and overlay the crosshair.
+static void render_aim(uint32_t *pixels, const Map *map, float a)
+{
+    float dx = cosf(a), dy = sinf(a);
+    render_frame(pixels, map, map->spawn_x, map->spawn_y, dx, dy, -dy * 0.66f, dx * 0.66f, 0.0f, 0.0f);
+    render_crosshair(pixels);
+}
+
+// aim_decide_fn for --task aim --policy agent: render the current view,
+// export it, and block on the external agent's fire/no-fire reply (the wire
+// action is "jump"; the Python agent maps FIRE to it). px carries the aim
+// angle; on_ground is always 1 and pit_dist -1 (no pit in this scene).
+static int aim_agent_decide(void *ctx_, int tick, float aim, Window w)
+{
+    (void)w;
+    AgentCtx *ctx = (AgentCtx *)ctx_;
+    ctx->last_tick = tick;
+    ctx->last_px = aim;
+    ctx->last_py = 0.0f;
+    ctx->last_on_ground = 1;
+    render_aim(ctx->pixels, ctx->map, aim);
+    if (ctx->frame_out) save_frame_latest(ctx->pixels, ctx->frame_out);
+    int a = ray_agent_decide(tick, aim, 0.0f, 1, -1.0f, 0, 0);
+    return (a == 1) ? 1 : 0;
+}
+
+// Frame battery for the aim judge: one frame per tick of the sweep from a0
+// to one window past the far edge, with a manifest line per frame.
+static int run_aim_frames(AimConfig aim, const char *prefix)
+{
+    SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+    SDL_Init(SDL_INIT_VIDEO);
+    Map map;
+    map_load_aim(&map, AIM_TARGET_X);
+    static uint32_t pixels[SCREEN_W * SCREEN_H];
+    Window win = aim_window(aim);
+    float a = aim.a0;
+    for (int t = 0; a <= win.w_hi + (win.w_hi - win.w_lo) && t < 10000; t++, a = aim.a0 + aim.omega * (float)t) {
+        render_aim(pixels, &map, a);
+        SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(
+            pixels, SCREEN_W, SCREEN_H, 32, SCREEN_W * sizeof(uint32_t), SDL_PIXELFORMAT_ARGB8888);
+        char path[512];
+        SDL_snprintf(path, sizeof path, "%s_%03d.bmp", prefix, t);
+        if (s) { SDL_SaveBMP(s, path); SDL_FreeSurface(s); }
+        int in_win = (a >= win.w_lo && a <= win.w_hi) ? 1 : 0;
+        printf("{\"path\":\"%s\",\"tick\":%d,\"aim\":%.4f,\"w_lo\":%.4f,\"w_hi\":%.4f,"
+               "\"omega\":%.4f,\"in_window\":%d}\n", path, t, a, win.w_lo, win.w_hi, aim.omega, in_win);
+    }
+    SDL_Quit();
+    return 0;
+}
+
 // Headless, deterministic parametric episode(s): no SDL window, no wall-clock
 // in the sim path. Parses --episode's own flags out of argv and prints one
 // JSON result line per episode.
@@ -276,6 +335,8 @@ static int run_episode(int argc, char **argv)
     const char *policy = "oracle";
     const char *task = "pit";
     const char *frame_out = NULL;
+    const char *aim_frames = NULL;   // --aim-frames <prefix>: dump the aim scene's sweep
+    int aim_scene = 0;               // --aim-scene: window from the rendered scene's geometry
     int delay = 0, repeat = 1, episodes = 1;
     // Sweeping-aim task (see aim.h). Defaults chosen so the aim sweeps up
     // through the window from a run-up below it.
@@ -301,22 +362,53 @@ static int run_episode(int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--theta") == 0 && i + 1 < argc) aim.theta_t = (float)atof(argv[++i]);
         else if (SDL_strcmp(argv[i], "--a0") == 0 && i + 1 < argc) aim.a0 = (float)atof(argv[++i]);
         else if (SDL_strcmp(argv[i], "--width-id") == 0 && i + 1 < argc) aim.width_id = atoi(argv[++i]);
+        else if (SDL_strcmp(argv[i], "--aim-frames") == 0 && i + 1 < argc) aim_frames = argv[++i];
+        else if (SDL_strcmp(argv[i], "--aim-scene") == 0) aim_scene = 1;
     }
 
     // Sweeping-aim task: a self-contained kinematic episode (oracle only, no
     // rendering) emitting the same JSON schema as the pit — the generality
     // test for the r~1 law. Handled entirely here, before the pit path.
     if (SDL_strcmp(task, "aim") == 0) {
-        if (SDL_strcmp(policy, "oracle") != 0) {
-            fprintf(stderr, "[episode] --task aim supports --policy oracle only\n");
+        // The rendered scene (frame battery or an external agent) defines the
+        // window from the target tile's geometry; the kinematic oracle keeps
+        // its explicit --theta/--half-width unless --aim-scene is given.
+        if (aim_frames || aim_scene || SDL_strcmp(policy, "agent") == 0)
+            aim = aim_scene_config(aim, AIM_TARGET_X, AIM_RUN_UP);
+        if (aim_frames) return run_aim_frames(aim, aim_frames);
+        if (SDL_strcmp(policy, "oracle") == 0) {
+            for (int e = 0; e < episodes; e++) {
+                EpisodeResult res = aim_run_oracle(aim, delay, repeat);
+                char buf[512];
+                aim_result_json(&res, &aim, "aim-oracle", delay, repeat, buf, sizeof buf);
+                printf("%s\n", buf);
+            }
+            return 0;
+        }
+        if (SDL_strcmp(policy, "agent") != 0) {
+            fprintf(stderr, "[episode] --task aim supports --policy oracle or agent\n");
             return 1;
         }
-        for (int e = 0; e < episodes; e++) {
-            EpisodeResult res = aim_run_oracle(aim, delay, repeat);
-            char buf[512];
-            aim_result_json(&res, &aim, "aim-oracle", delay, repeat, buf, sizeof buf);
-            printf("%s\n", buf);
+        if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+            fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+            return 1;
         }
+        if (!ray_agent_init(false)) {
+            fprintf(stderr, "[agent] init failed\n");
+            SDL_Quit();
+            return 1;
+        }
+        Map amap;
+        map_load_aim(&amap, AIM_TARGET_X);
+        static uint32_t apixels[SCREEN_W * SCREEN_H];
+        AgentCtx actx = { &amap, apixels, frame_out, -1, 0.0f, 0.0f, 1, 0.0f };
+        EpisodeResult res = aim_run(aim, delay, repeat, aim_agent_decide, &actx);
+        ray_agent_decide(actx.last_tick, actx.last_px, 0.0f, 1, -1.0f, res.cleared, res.fell);
+        ray_agent_shutdown();
+        SDL_Quit();
+        char buf[512];
+        aim_result_json(&res, &aim, "aim-agent", delay, repeat, buf, sizeof buf);
+        printf("%s\n", buf);
         return 0;
     }
 

@@ -20,6 +20,11 @@ which 5 are delay-rescued.
 | `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL, `fig_realmodel_fog.png` (clear vs fog) when the fog sweep exists, and `fig_realmodel_haiku.png` (Sonnet vs Haiku) when the Haiku sweep exists. |
 | `haiku_boundary_sweep.jsonl` | The same 72-episode grid with Haiku 4.5 as the judge (`boundary_sweep.py --model claude-haiku-4-5-20251001`): commits at 9.08 (57/72), in-window r* = 0.96, 10 far-field early commits, 26/72. |
 | `battery_v4_high_fog0_haiku.json` | Haiku 4.5 on the 108 frames × 3 samples (the gate before its sweep): far-field false JUMPs at 5.02–8.66, first in-window frame 0/3. |
+| `sonnet_aim_sweep.jsonl` | The judge on the second scene (`aim_sweep.py`): the rendered aim task (turn in place, FIRE while the center line is over the target tile; `raycaster --task aim --policy agent`), 12 delays × 6 seeds. Same row schema (speed = omega, w_lo/w_hi = angular window, decision_x = aim angle) plus `call_log` of [aim angle, latency_s, action]. |
+| `aim_sweep.py` | Driver for the aim-scene sweep (`--pilot`, `--effort`, `--delays`). |
+| `aim_battery.py` | Renders the 68 frames of the aim sweep (`--aim-frames`) and runs the aim judge on them; the gate before an aim sweep. |
+| `battery_aim_high.json` | The aim judge (prompt v2, the both-sides rule) × 3 samples: unanimous on ticks 48-54, late on 45-47, one pre-window FIRE frame. `battery_aim_v1_high.json` is the first prompt ("touching"), which fired 8 ticks early. |
+| `fig_aim_real.py` | Regenerates `../figures/fig_aim_real.png` from the aim sweep. |
 | `sonnet_clock_sweep.jsonl` | Clock-rate sweep (`clock_sweep.py`): the same judge in an emulated real-time loop, 12 clock periods × 6 seeds, each call's measured latency replayed as its own delay. 31/72 cleared; flip at r = 1/3; deliberation stall on x ∈ [7.9, 8.4]. Rows carry `clock_s`, `effort`, `judge_x`, `delay_ticks_median`, and a per-call `call_log` of [px, latency_s, delay_ticks, raw answer, committed action, retries]. |
 | `sonnet_clock_sweep_low.jsonl` | The same clock-rate sweep at low effort (`clock_sweep.py --effort low`): no stall (1.0 s flat) but 54% false JUMP on x ∈ [7.5, 8.92), 58/72 early commits, 8/72 cleared. |
 | `clock_sweep.py` | Driver for the clock-rate sweep (`--effort`, `--clocks`, `--backend rules --latency` for a free self-test). |

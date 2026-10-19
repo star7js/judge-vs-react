@@ -27,10 +27,26 @@ typedef struct {
 // Angular hit window [theta_t - h, theta_t + h].
 Window aim_window(AimConfig cfg);
 
-// Run one deterministic aim episode with the oracle (fire at the first
-// consulted tick the aim is at/past the window's near edge), deferring the
-// shot by `delay` ticks and consulting every `repeat` ticks.
+// Policy callback for the aim task: consulted once per tick (where
+// tick % repeat == 0 and no decision has been made yet) with the current aim
+// angle. Returns 1 to fire now, 0 to keep sweeping.
+typedef int (*aim_decide_fn)(void *ctx, int tick, float aim, Window w);
+
+// Run one deterministic aim episode with a caller-supplied policy, deferring
+// the shot by `delay` ticks and consulting every `repeat` ticks. An episode
+// with no decision ends as a miss once the aim has swept one window-width
+// past the far edge (so an external agent that never fires terminates).
+EpisodeResult aim_run(AimConfig cfg, int delay, int repeat, aim_decide_fn decide, void *ctx);
+
+// The oracle (fire at the first consulted tick the aim is at/past the
+// window's near edge), via aim_run.
 EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat);
+
+// Scene geometry for the rendered aim task (map_load_aim): the window is the
+// angular extent of the target tile's face as seen from the player, so the
+// crosshair is over the tile iff the aim is inside [w_lo, w_hi]. Overwrites
+// theta_t, half_width and a0 (= theta_t - run_up); keeps omega and width_id.
+AimConfig aim_scene_config(AimConfig base, int target_x, float run_up);
 
 // Serialize an aim result to the SAME JSON schema as episode_result_json, so
 // the Python analysis reuses ratio()/window_width() unchanged:

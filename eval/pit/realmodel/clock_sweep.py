@@ -49,14 +49,14 @@ SEEDS = [1, 2, 3, 4, 5, 6]
 
 
 def run_one(job):
-    clock_s, seed, backend, model, fixed_latency, effort = job
+    clock_s, seed, backend, model, fixed_latency, effort, commit_k = job
     wid = os.getpid()
     os.environ["KEEN_AGENT_SOCK"] = f"/tmp/keen_clock_sock_{wid}"
     latency_log = f"/tmp/keen_clock_lat_{wid}.jsonl"
     frame_out = f"/tmp/keen_clock_frame_{wid}.bmp"
     cfg = EpisodeConfig(policy="agent", pit_near=10.0, pit_width=2, speed=0.07,
                         fog=0.0, seed=seed, delay=0, repeat=1, model=model)
-    extra = ["--clock-s", repr(clock_s), "--effort", effort]
+    extra = ["--clock-s", repr(clock_s), "--effort", effort, "--commit-k", str(commit_k)]
     if fixed_latency:
         extra += ["--latency", repr(fixed_latency)]
     t0 = time.time()
@@ -75,7 +75,7 @@ def run_one(job):
     ns = [c["delay_ticks"] for c in calls]
     jumps = [c for c in calls if c["action"] == "jump"]
     row.update({
-        "clock_s": clock_s, "effort": effort, "n_calls": len(calls),
+        "clock_s": clock_s, "effort": effort, "commit_k": commit_k, "n_calls": len(calls),
         "n_retried_calls": sum(1 for c in calls if c.get("retries")),
         # frame the judge committed on (its takeoff is decision_x, n ticks later);
         # the first committed JUMP -- the loop keeps asking after it, so later
@@ -98,6 +98,7 @@ def main():
     ap.add_argument("--backend", default="vision", choices=["vision", "rules"])
     ap.add_argument("--model", default=MODEL)
     ap.add_argument("--effort", default="high", help="adaptive-thinking effort for the judge (S5: high)")
+    ap.add_argument("--commit-k", type=int, default=2, help="consecutive answers required to commit (S5: 2)")
     ap.add_argument("--latency", type=float, default=0.0,
                     help="rules backend: fixed fake latency in seconds (self-test)")
     ap.add_argument("--clocks", default=None, help="comma-separated clock periods (s) override")
@@ -108,9 +109,9 @@ def main():
     clocks = [float(x) for x in a.clocks.split(",")] if a.clocks else CLOCKS
     seeds = [int(x) for x in a.seeds.split(",")] if a.seeds else SEEDS
     short = a.model.split("-")[1] if a.backend == "vision" else "rules"
-    tag = "" if a.effort == "high" else f"_{a.effort}"
+    tag = ("" if a.effort == "high" else f"_{a.effort}") + ("" if a.commit_k == 2 else f"_k{a.commit_k}")
     out_path = Path(a.out) if a.out else HERE / f"{short}_clock_sweep{tag}.jsonl"
-    grid = [(c, s, a.backend, a.model if a.backend == "vision" else None, a.latency, a.effort)
+    grid = [(c, s, a.backend, a.model if a.backend == "vision" else None, a.latency, a.effort, a.commit_k)
             for c in clocks for s in seeds]
     done = set()
     if out_path.exists():

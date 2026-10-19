@@ -61,6 +61,7 @@ def run_vlm_episode(
     latency_log: str,
     frame_out: str = "/tmp/keen_ray_frame.bmp",
     agent_extra: list[str] | None = None,
+    extra_cli: list[str] | None = None,
 ) -> dict:
     """Run one `--policy agent` episode driven by `pit_agent.py` and return
     the merged result row.
@@ -86,7 +87,7 @@ def run_vlm_episode(
 
     env = {**os.environ, "SDL_VIDEODRIVER": "dummy"}
     game = subprocess.Popen(
-        [binary, *cfg.cli_args(), "--frame-out", frame_out],
+        [binary, *cfg.cli_args(), *(extra_cli or []), "--frame-out", frame_out],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

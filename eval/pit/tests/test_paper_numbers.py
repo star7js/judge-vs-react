@@ -2,6 +2,7 @@
 committed data, through the same code paths analyze.py uses. If a data
 regen or an analyze.py change shifts any published value, this fails
 before the paper silently drifts from the repo."""
+import json
 import os
 import statistics
 
@@ -483,3 +484,18 @@ def test_haiku_boundary_sweep():
     assert all(r["cleared"] == (8.921 <= r["decision_x"] + 0.07 * r["delay"] <= 10.065) for r in rows)
     e = delay_sweep_expectation(rows, [0, 4, 8, 12, 14, 15, 16, 17, 18, 20, 24, 31], per_delay=6)
     assert round(e["expected"], 1) == 27.1
+
+
+def test_aim_judge_battery():
+    # The aim judge (sweep_agent.AIM_PROMPT, high effort) on the 68 frames of
+    # the aim sweep x 3 samples: unanimous FIRE on ticks 48-54, late on the
+    # first in-window frames (45: 0/3; 46, 47: 2/3; 55: 1/3), one pre-window
+    # frame with FIREs (44: 2/3), none after the window.
+    path = os.path.join(DATA, "..", "realmodel", "battery_aim_high.json")
+    b = json.load(open(path))
+    assert len(b) == 68 and all(x["n"] == 3 for x in b)
+    inw = [x for x in b if x["in_window"]]
+    assert [x["tick"] for x in inw] == list(range(45, 56))
+    assert {x["tick"]: x["jump"] for x in inw if x["jump"] < 3} == {45: 0, 46: 2, 47: 2, 55: 1}
+    assert all(x["jump"] == 3 for x in inw if 48 <= x["tick"] <= 54)
+    assert {x["tick"]: x["jump"] for x in b if x["jump"] and not x["in_window"]} == {44: 2}

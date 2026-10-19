@@ -44,6 +44,28 @@ VISION_PROMPT = (
 )
 
 
+# The aim judge: same shape as VISION_PROMPT (name the cue, one literal
+# question, a two-word verdict), for the rendered aim scene (raycaster
+# --task aim): fire while the center line is over the target tile.
+AIM_PROMPT = (
+    "This is a first-person view of a game. You are turning in place. A thin "
+    "bright yellow vertical line runs down the exact center of the image from "
+    "top to bottom. On the far wall there is one bright magenta (pink-purple) "
+    "block; everything else is dark red wall, gray checkered floor and dark "
+    "ceiling. You must FIRE only while the yellow line passes THROUGH the "
+    "magenta block. The test is strict: the line is on the block only if "
+    "magenta is visible immediately to the LEFT of the yellow line AND "
+    "immediately to the RIGHT of it, at the same height. If the whole block "
+    "is to one side of the line, even if it is very close to the line, the "
+    "line is NOT on the block.\n"
+    "Answer in exactly two lines.\n"
+    "Line 1: Is there magenta on both sides of the yellow line: yes or no?\n"
+    "Line 2: If yes, say FIRE. If no, say WAIT."
+)
+
+TASKS = {"pit": (VISION_PROMPT, "JUMP"), "aim": (AIM_PROMPT, "FIRE")}
+
+
 def rules_decide(st: dict) -> bool:
     # Jump when grounded and the pit's near edge is within ~1 tile. Earlier than
     # that lands short inside the pit; the clear window is pit_dist in (0, 1].
@@ -84,7 +106,7 @@ def thinking_kwargs(model: str, effort: str = "high") -> dict:
 
 
 def make_vision_decider(frame_path: str, model: str, latency_log: str | None = None,
-                        effort: str = "high"):
+                        effort: str = "high", task: str = "pit"):
     """Build a decide(st)->bool backed by Claude vision. Frame comes from disk
     (the game's --frame-out), never from pit_dist — the view is the only input.
 
@@ -101,7 +123,8 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
     # max_retries=0 so every retry goes through _create_with_retry and is
     # counted in the latency log.
     client = anthropic.Anthropic(timeout=60.0, max_retries=0)
-    print(f"[pit-agent] vision model={model} effort={effort} frame={frame_path}", flush=True)
+    prompt, fire_word = TASKS[task]
+    print(f"[pit-agent] vision model={model} effort={effort} task={task} frame={frame_path}", flush=True)
 
     def decide(st: dict) -> bool:
         if st["on_ground"] != 1:
@@ -127,13 +150,13 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
                 "content": [
                     {"type": "image", "source": {
                         "type": "base64", "media_type": "image/png", "data": b64}},
-                    {"type": "text", "text": VISION_PROMPT},
+                    {"type": "text", "text": prompt},
                 ],
             }],
         )
         dt = time.time() - t0
         text = "".join(b.text for b in resp.content if b.type == "text").strip().upper()
-        jump = "JUMP" in text
+        jump = fire_word in text
         print(f"  [vision] {dt:4.2f}s px={st['px']:.2f} -> {text!r}"
               f"{'  *** JUMP ***' if jump else ''}", flush=True)
         if latency_log:
@@ -301,6 +324,10 @@ def main() -> None:
                     help="rules backend: seconds per decision (simulate a slow call)")
     ap.add_argument("--max-seconds", type=float, default=0.0,
                     help="stop after N seconds and print a summary (0 = until won)")
+    ap.add_argument("--commit-k", type=int, default=2,
+                    help="commit on the k-th consecutive JUMP/FIRE answer (S5 judge: 2; 1 = fire on the first)")
+    ap.add_argument("--task", default="pit", choices=list(TASKS),
+                    help="which scene the frames come from: the pit (JUMP) or the aim scene (FIRE)")
     ap.add_argument("--effort", default="high",
                     help="vision backend, 4.6+ models: adaptive-thinking effort (S5 judge: high)")
     ap.add_argument("--clock-s", type=float, default=0.0,
@@ -315,7 +342,7 @@ def main() -> None:
     a = ap.parse_args()
 
     if a.backend == "vision":
-        raw_decide = make_vision_decider(a.frame, a.model, a.latency_log, a.effort)
+        raw_decide = make_vision_decider(a.frame, a.model, a.latency_log, a.effort, a.task)
 
         # Commit rule: fire only on two consecutive JUMP answers. A single
         # stochastic JUMP (~2% per call far from the pit) would otherwise
@@ -327,7 +354,7 @@ def main() -> None:
                 _streak["n"] += 1
             else:
                 _streak["n"] = 0
-            return _streak["n"] >= 2
+            return _streak["n"] >= a.commit_k
     elif a.backend == "ollama":
         decide = make_ollama_decider(a.frame, a.model, a.ollama_url, a.latency_log)
     else:
