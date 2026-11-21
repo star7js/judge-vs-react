@@ -76,5 +76,5 @@ ffmpeg -y -framerate 30 -i f_%05d.bmp -i pal.png \
 ```
 
 Physics: `MOVE_SPEED=0.07`, `JUMP_V0=0.11`, `GRAVITY=0.005`, 60fps → a 0.2s
-decision costs ~0.84 tiles of travel, about one jump window; see the design doc
-`docs/superpowers/specs/2026-07-06-judge-vs-react-design.md` for the full framing.
+decision costs ~0.84 tiles of travel, about one jump window; see
+`paper/judge-vs-react.md` for the full framing.

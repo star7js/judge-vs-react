@@ -1,9 +1,9 @@
 """Real-model (Sonnet) sweep through the r~1 boundary — parallel version.
 
 Blocking agent episodes at pit width 2 (W=1.078, v=0.07), sweeping injected
-delay D so r = v*D/W spans ~0 to ~2. Uses the scratchpad's patched binary
-and sweep_agent.py (env-configurable socket => parallel episodes; structured
-two-line prompt at medium effort => competent judge). Judgment noise comes
+delay D so r = v*D/W spans ~0 to ~2. Uses the repo's sim binary and
+sweep_agent.py (env-configurable socket => parallel episodes; structured
+two-line prompt at high effort => competent judge). Judgment noise comes
 from the model; the r axis from D.
 
 Resumable: (delay, seed) pairs already in the output file are skipped.

@@ -538,9 +538,12 @@ def fig_perception(rows: list[dict], out_path: str) -> dict:
     image, scored `correct` against the ground-truth `in_window` (a jump from
     that spot clears). Fog obscures the pit's distance, so judgment (at zero
     delay) degrades — the perception half of the perception-vs-timing
-    dissociation. Capable models (Opus, Sonnet) read the depth cue when it is
-    present and collapse toward chance under fog; a weaker model that never
-    reads the cue sits at floor in both conditions."""
+    dissociation.
+
+    RETRACTED PILOT. This plots the n=10-per-cell subagent-judged pilot, kept
+    for the record only. Its apparent result (Opus and Sonnet reading the
+    depth cue unprompted, collapsing under fog) did not survive the n=100 API
+    battery: see `fig_perception_v2`, the paper's perception figure."""
     # accuracy[judge][fog] = list of correct flags
     acc: dict[str, dict[float, list[int]]] = {}
     for row in rows:
@@ -807,8 +810,9 @@ def main() -> None:
 
     fig_timing(oracle_rows, out_dir / "fig_timing.png", vlm_rows=vlm_rows)
     edge_rows = load_jsonl(args.edge)
+    edge_fit = None
     if edge_rows:
-        fig_edge(edge_rows, out_dir / "fig_edge.png")
+        edge_fit = fig_edge(edge_rows, out_dir / "fig_edge.png")
     else:
         print(f"[fig_edge] skipped -- no data at {args.edge!r} (run eval.pit.run_edge_sweep)")
     fig_flip(oracle_rows, out_dir / "fig_flip.png")
@@ -826,7 +830,10 @@ def main() -> None:
 
     latency_rows = load_jsonl(args.latency)
     if latency_rows:
-        fig_latency(latency_rows, out_dir / "fig_latency.png")
+        # Use the r* just fitted on the edge grid; the function's default is
+        # that same fit's value, for when the edge data is absent.
+        kw = {"r_star": edge_fit["r_star"]} if edge_fit else {}
+        fig_latency(latency_rows, out_dir / "fig_latency.png", **kw)
     else:
         print(f"[fig_latency] skipped -- no data at {args.latency!r}")
 
