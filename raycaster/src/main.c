@@ -179,7 +179,10 @@ static int run_shoot(int argc, char **argv)
         char path[512];
         SDL_snprintf(path, sizeof path, "%s_%02d.bmp", prefix, i);
         if (s) { SDL_SaveBMP(s, path); SDL_FreeSurface(s); }
-        int in_win = (px >= win.w_lo && px <= win.w_hi) ? 1 : 0;
+        // Label from the sim's own dynamics, as episode_run does. Comparing
+        // against [w_lo, w_hi] would mislabel a frame within the window
+        // scan's 0.001 step of either edge.
+        int in_win = takeoff_clears(cfg, phys, px);
         printf("{\"path\":\"%s\",\"idx\":%d,\"px\":%.3f,\"pit_width\":%d,\"fog\":%.2f,"
                "\"w_lo\":%.3f,\"w_hi\":%.3f,\"in_window\":%d}\n",
                path, i, px, cfg.pit_width, cfg.fog, win.w_lo, win.w_hi, in_win);
@@ -228,6 +231,7 @@ typedef struct {
     float last_px, last_py;
     int last_on_ground;
     float fog;   // visibility knob passed through to render_frame
+    int disconnected;   // set if the agent went away before deciding
 } AgentCtx;
 
 // decide_fn for --policy agent: renders the current frame, exports it (if
@@ -264,6 +268,7 @@ static int agent_decide(void *ctx_, int tick, float px, float py,
 
     float pit_dist = pit_ahead(ctx->map, px, py);
     int a = ray_agent_decide(tick, px, py, on_ground, pit_dist, 0, 0);
+    if (a < 0) ctx->disconnected = 1;
     return (a == 1) ? 1 : 0;
 }
 
@@ -297,6 +302,7 @@ static int aim_agent_decide(void *ctx_, int tick, float aim, Window w)
     render_aim(ctx->pixels, ctx->map, aim);
     if (ctx->frame_out) save_frame_latest(ctx->pixels, ctx->frame_out);
     int a = ray_agent_decide(tick, aim, 0.0f, 1, -1.0f, 0, 0);
+    if (a < 0) ctx->disconnected = 1;
     return (a == 1) ? 1 : 0;
 }
 
@@ -401,8 +407,17 @@ static int run_episode(int argc, char **argv)
         Map amap;
         map_load_aim(&amap, AIM_TARGET_X);
         static uint32_t apixels[SCREEN_W * SCREEN_H];
-        AgentCtx actx = { &amap, apixels, frame_out, -1, 0.0f, 0.0f, 1, 0.0f };
+        AgentCtx actx = { &amap, apixels, frame_out, -1, 0.0f, 0.0f, 1, 0.0f, 0 };
         EpisodeResult res = aim_run(aim, delay, repeat, aim_agent_decide, &actx);
+        // Same guard as the pit path: an agent that died before deciding
+        // never fires, which is not a miss. No result row; exit 2.
+        if (actx.disconnected) {
+            fprintf(stderr, "[episode] agent disconnected at tick %d before "
+                            "deciding; no result\n", actx.last_tick);
+            ray_agent_shutdown();
+            SDL_Quit();
+            return 2;
+        }
         ray_agent_decide(actx.last_tick, actx.last_px, 0.0f, 1, -1.0f, res.cleared, res.fell);
         ray_agent_shutdown();
         SDL_Quit();
@@ -437,9 +452,21 @@ static int run_episode(int argc, char **argv)
             Map map;
             map_load_pit(&map, cfg);
             static uint32_t pixels[SCREEN_W * SCREEN_H];
-            AgentCtx actx = { &map, pixels, frame_out, -1, 0.0f, 0.0f, 0, cfg.fog };
+            AgentCtx actx = { &map, pixels, frame_out, -1, 0.0f, 0.0f, 0, cfg.fog, 0 };
 
             res = episode_run(cfg, phys, delay, repeat, agent_decide, &actx);
+
+            // An agent that died mid-episode (crash, API error) answers
+            // nothing, so the player just walks into the pit. That is not a
+            // judgment: emit no result row and fail, so a sweep driver
+            // retries the episode instead of recording a fall.
+            if (actx.disconnected) {
+                fprintf(stderr, "[episode] agent disconnected at tick %d before "
+                                "deciding; no result\n", actx.last_tick);
+                ray_agent_shutdown();
+                SDL_Quit();
+                return 2;
+            }
 
             // Notify the agent of the terminal state (won/dead) so
             // pit_agent.py (and any other driver) sees a final message and
@@ -522,6 +549,15 @@ int main(int argc, char **argv)
             : "AI playing (blocking) — watch it judge the jump  |  Esc quit");
     }
 
+    // Export the view for the state the agent is about to be sent. `pixels`
+    // still holds the previous iteration's render (all zeros on frame 0), so
+    // re-render at the current position first.
+    #define EXPORT_FRAME() do { \
+        render_frame(pixels, &map, pos_x, pos_y, dir_x, dir_y, plane_x, plane_y, \
+                     jz * CAM_OFF_SCALE, 0.0f); \
+        save_frame_latest(pixels, frame_out); \
+    } while (0)
+
     long frame = 0;
     int running = 1, won = 0, won_frames = 0;
     while (running) {
@@ -568,7 +604,9 @@ int main(int argc, char **argv)
             float pit = pit_ahead(&map, pos_x, pos_y);
             if (realtime) {
                 if (frame % DECISION_INTERVAL == 0) {
-                    if (frame_out) save_frame_latest(pixels, frame_out);
+                    if (frame_out) {
+                        EXPORT_FRAME();
+                    }
                     ray_agent_send((int)frame, pos_x, pos_y, og, pit, 0, 0);
                 }
                 int a = ray_agent_poll();
@@ -577,7 +615,9 @@ int main(int argc, char **argv)
                 if (frame % DECISION_INTERVAL == 0) {
                     // Export the frame the agent will act on *before* we block on
                     // its reply, so a vision agent reads the matching image.
-                    if (frame_out) save_frame_latest(pixels, frame_out);
+                    if (frame_out) {
+                        EXPORT_FRAME();
+                    }
                     int a = ray_agent_decide((int)frame, pos_x, pos_y, og, pit, 0, 0);
                     if (a == 1 && og) jvz = JUMP_V0;
                     if (a == -1) agent_mode = 0;  // disconnected → hand back to keyboard

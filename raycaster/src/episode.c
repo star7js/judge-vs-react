@@ -43,7 +43,7 @@ float jump_step(float *jz, float *jvz, float gravity)
 // dynamics instead of a separate analytic formula that can drift from it
 // (e.g. by wrongly insetting for PLAYER_R, which the fall check never uses
 // since pit floor is non-solid and never gates on the player's radius).
-static int takeoff_clears(PitConfig cfg, JumpPhysics phys, float x)
+int takeoff_clears(PitConfig cfg, JumpPhysics phys, float x)
 {
     Map map;
     map_load_pit(&map, cfg);

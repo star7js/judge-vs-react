@@ -280,7 +280,8 @@ free, and $r$ is engineered exactly as in \S\ref{sec:calib}: Sonnet~4.6 judges
 \emph{every grounded frame} of a closed-loop blocking episode (pit width 2,
 $v = 0.07$, fog 0, seeds 1--6), its committed jump is applied $D$ ticks later,
 and sweeping $D \in \{0, \dots, 31\}$ sweeps $r = vD/W$ from $0$ to $2$,
-densely around $r = 1$ (72 episodes; 6{,}612 vision calls).
+densely around $r = 1$ (72 episodes; 6{,}540 judged frames, plus one redundant
+call per episode after it ended: 6{,}612 vision calls).
 
 \paragraph{Judge protocol.} The episode prompt used for the latency battery
 (\S\ref{sec:latency}) turns out never to elicit JUMP near the window from
@@ -402,7 +403,8 @@ judge still fires on every in-window frame, but it also fires early more
 often --- isolated JUMPs at $x = 8.38$, $8.73$ and $8.80$, a far-field false
 JUMP at $x = 2.85$ (1/3), and two in-window frames that were not unanimous.
 We therefore repeated the \S\ref{sec:real} sweep at fog 1: same judge, same
-prompt, same 12 delays $\times$ 6 seeds (72 episodes; 6{,}669 vision calls),
+prompt, same 12 delays $\times$ 6 seeds (72 episodes; 6{,}597 judged frames,
+6{,}669 vision calls),
 with nothing changed but the renderer's fog (Fig.~\ref{fig:fog}).
 
 \paragraph{The commit point spreads.} In clear weather 63/72 commits sat at
@@ -483,8 +485,8 @@ Fig.~\ref{fig:fog}, not a property of the timing law.
 The sweeps above are one judge. To see which of their results belong to the
 judge and which to the apparatus, we ran the \S\ref{sec:real} grid again
 with Haiku~4.5 as the judge: same prompt, same two-consecutive commit rule,
-same 12 delays $\times$ 6 seeds, pit width 2, fog 0 (72 episodes, 6{,}540
-calls). Haiku predates adaptive thinking, so it runs with a 2k-token
+same 12 delays $\times$ 6 seeds, pit width 2, fog 0 (72 episodes; 6{,}468
+judged frames, 6{,}540 calls). Haiku predates adaptive thinking, so it runs with a 2k-token
 thinking budget; its per-episode mean latency is 2.6\,s. On the 108-frame
 battery it is a worse judge than Sonnet in the ways \S\ref{sec:perception}
 predicts: it fires on every in-window frame except the first ($x = 8.94$,

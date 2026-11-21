@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from eval.pit.config import EpisodeConfig
@@ -72,7 +73,9 @@ def run_vlm_episode(
     result, and merges it with `{"model", "backend", "L_mean_s"}`.
 
     Raises `RuntimeError` if `backend == "vision"` and `ANTHROPIC_API_KEY`
-    is unset, or if the game does not exit within `GAME_TIMEOUT_S`. The
+    is unset, if the game does not exit within `GAME_TIMEOUT_S`, or if the
+    agent died mid-episode (the game then exits nonzero with no result row,
+    rather than reporting the unattended walk into the pit as a fall). The
     `ollama` backend needs no key (local server); the `model` is passed
     through to `pit_agent.py` for both `vision` and `ollama`.
     """
@@ -104,9 +107,17 @@ def run_vlm_episode(
         agent_args += ["--model", model]
     if agent_extra:
         agent_args += list(agent_extra)
+    # The agent's output goes to a temp file, not a pipe: nothing reads it
+    # while the episode runs, and a chatty agent would block on a full pipe.
+    agent_log = tempfile.TemporaryFile(mode="w+")
     agent = subprocess.Popen(
-        agent_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        agent_args, stdout=agent_log, stderr=subprocess.STDOUT, text=True,
     )
+
+    def agent_tail(n: int = 15) -> str:
+        agent_log.flush()
+        agent_log.seek(0)
+        return "".join(agent_log.readlines()[-n:])
 
     try:
         try:
@@ -122,9 +133,16 @@ def run_vlm_episode(
             )
 
         if game.returncode != 0:
+            # Exit 2 = the agent disconnected before deciding (it crashed);
+            # the game refuses to report that as a fall.
+            try:
+                agent.wait(timeout=5.0)
+            except subprocess.TimeoutExpired:
+                pass
             raise RuntimeError(
                 f"keen-raycaster exited with code {game.returncode} for config "
                 f"({' '.join(cfg.cli_args())}).\nstderr:\n{stderr}"
+                f"\nagent output (tail):\n{agent_tail()}"
             )
 
         lines = [line for line in stdout.splitlines() if line.strip()]
@@ -158,6 +176,7 @@ def run_vlm_episode(
             if proc.poll() is None:
                 proc.kill()
                 proc.wait()
+        agent_log.close()
 
 
 def main() -> None:

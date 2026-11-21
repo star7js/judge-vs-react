@@ -2,8 +2,8 @@
 
 Data and driver for the paper's section 4.6 — claude-sonnet-4-6 judging every
 frame of closed-loop blocking episodes, swept through the `r ≈ 1` boundary by
-injected delay. 72 episodes (12 delays × 6 seeds, pit width 2), 6,612 vision
-calls. Result: in-window decisions clear 32/32 through `r = 0.97` and 0/26
+injected delay. 72 episodes (12 delays × 6 seeds, pit width 2), 6,540 judged
+frames (6,612 vision calls; see the note on `n_calls` below). Result: in-window decisions clear 32/32 through `r = 0.97` and 0/26
 from `r = 1.10`; logistic `r* = 1.05`; 9 early (out-of-window) decisions of
 which 5 are delay-rescued.
 
@@ -44,6 +44,15 @@ python3 eval/pit/realmodel/battery_fog.py --fog 1.0      # judge battery under f
 python3 eval/pit/realmodel/boundary_sweep.py --fog 1.0 --workers 4   # fog-1 grid
 python3 eval/pit/realmodel/fig_realmodel.py              # refit + figures
 ```
+
+A note on `n_calls` in the three committed boundary sweeps: when those ran,
+the agent also answered the sim's end-of-episode message with a model call on
+the frame it had already committed on. So each row's `n_calls` is its judged
+frames (`decision_tick + 1`) plus one, and that extra latency sample is in
+`L_mean_s`. The sweep totals are 6,540 / 6,597 / 6,468 judged frames (Sonnet,
+Sonnet fog 1, Haiku) against 6,612 / 6,669 / 6,540 calls. No decision, outcome
+or fit depends on it. `sweep_agent.py` no longer makes that call, so new runs
+log judged frames only. The clock-rate sweeps were never affected.
 
 Practical notes: one episode ≈ 93 vision calls ≈ 5–12 minutes of wall-clock
 (sim time is decoupled from wall-clock, so API latency only costs patience,

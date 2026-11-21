@@ -30,10 +30,14 @@ Usage:
 """
 import argparse
 import json
+import os
 import socket
+import sys
 import time
 
-SOCK = "/tmp/keen_ray_agent.sock"
+# Same override the game honors (agent.c), so parallel game+agent pairs can
+# each use their own socket.
+SOCK = os.environ.get("KEEN_AGENT_SOCK") or "/tmp/keen_ray_agent.sock"
 
 # The vision model plays from the image alone — describe the task, ask for a
 # single-word verdict so the reply is tiny (cheap + low latency).
@@ -54,17 +58,23 @@ def rules_decide(st: dict) -> bool:
     return st["on_ground"] == 1 and 0.0 < pd <= 1.0
 
 
+def thinking_kwargs(model: str, effort: str = "low") -> dict:
+    """Per-model thinking configuration (same split as realmodel/sweep_agent.py).
+    Haiku 4.5 predates adaptive thinking and takes a token budget instead;
+    the 4.6+ models can't disable thinking, so they take adaptive thinking at
+    low effort to keep a reflex yes/no fast and cheap."""
+    if model.startswith("claude-haiku-4-5"):
+        return {"thinking": {"type": "enabled", "budget_tokens": 1024}, "max_tokens": 2048}
+    return {"thinking": {"type": "adaptive"}, "output_config": {"effort": effort}, "max_tokens": 256}
+
+
 def make_vision_decider(frame_path: str, model: str, latency_log: str | None = None):
     """Build a decide(st)->bool backed by Claude vision. Frame comes from disk
     (the game's --frame-out), never from pit_dist — the view is the only input.
 
     If `latency_log` is set, appends one JSON line per vision decision:
     `{"tick", "px", "latency_s", "action"}`."""
-    import base64
-    import io
-
     import anthropic
-    from PIL import Image
 
     client = anthropic.Anthropic()  # ANTHROPIC_API_KEY from the environment
     print(f"[pit-agent] vision model={model} frame={frame_path}", flush=True)
@@ -72,25 +82,15 @@ def make_vision_decider(frame_path: str, model: str, latency_log: str | None = N
     def decide(st: dict) -> bool:
         if st["on_ground"] != 1:
             return False  # mid-jump — nothing to decide, save the API call
-        try:
-            with open(frame_path, "rb") as f:
-                raw = f.read()
-        except FileNotFoundError:
-            return False  # no frame exported yet
         # Claude vision takes png/jpeg/gif/webp, not BMP — convert in memory.
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        b64 = base64.standard_b64encode(buf.getvalue()).decode("utf-8")
+        b64 = _frame_to_png_b64(frame_path)
+        if b64 is None:
+            return False  # no frame exported yet
 
         t0 = time.time()
         resp = client.messages.create(
             model=model,
-            max_tokens=256,
-            # Opus/Sonnet-4.6+ can't disable thinking; low effort keeps the
-            # per-frame call fast and cheap for a reflex yes/no.
-            thinking={"type": "adaptive"},
-            output_config={"effort": "low"},
+            **thinking_kwargs(model),
             messages=[{
                 "role": "user",
                 "content": [
@@ -239,7 +239,7 @@ def main() -> None:
     ap.add_argument("--latency", type=float, default=0.0,
                     help="rules backend: seconds per decision (simulate a slow call)")
     ap.add_argument("--max-seconds", type=float, default=0.0,
-                    help="stop after N seconds and print a summary (0 = until won)")
+                    help="stop after N seconds and print a summary (0 = until the episode ends)")
     ap.add_argument("--latency-log", default=None,
                     help="vision backend: append one JSON line per decision "
                          "with the measured API call latency (rules backend "
@@ -262,15 +262,31 @@ def main() -> None:
             time.sleep(0.1)
     else:
         print(f"[pit-agent] could not connect to {SOCK} — is the game running with --agent?", flush=True)
-        return
+        sys.exit(1)
     print(f"[pit-agent] backend={a.backend} latency={a.latency}s", flush=True)
 
     buf = bytearray()
     jumps = 0
+    t_start = time.time()
     while True:
         st, buf = read_latest_state(sock, buf)
         if st is None:
             print("[pit-agent] game closed", flush=True)
+            return
+
+        if a.max_seconds > 0 and time.time() - t_start >= a.max_seconds:
+            print(f"[pit-agent] stopping after {a.max_seconds:g}s (jumps={jumps})", flush=True)
+            return
+
+        if st.get("won") or st.get("dead"):
+            # Terminal notification: the episode is over, so there is nothing
+            # to judge. Acknowledge it (the game blocks on a reply) without
+            # spending a model call or logging a latency sample for it.
+            sock.sendall((json.dumps({"action": "none", "tick": st["tick"]}) + "\n").encode())
+            if st.get("won"):
+                print(f"[pit-agent] WON — cleared the pit (jumps={jumps})", flush=True)
+            else:
+                print(f"[pit-agent] fell in the pit (jumps={jumps})", flush=True)
             return
 
         if a.latency > 0:
@@ -284,10 +300,6 @@ def main() -> None:
                       f"on_ground={st['on_ground']} -> JUMP", flush=True)
         sock.sendall((json.dumps({"action": "jump" if jump else "none",
                                   "tick": st["tick"]}) + "\n").encode())
-
-        if st.get("won"):
-            print(f"[pit-agent] WON — cleared the pit (jumps={jumps})", flush=True)
-            return
 
 
 if __name__ == "__main__":

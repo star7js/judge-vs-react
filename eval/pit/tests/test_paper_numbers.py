@@ -499,3 +499,20 @@ def test_aim_judge_battery():
     assert {x["tick"]: x["jump"] for x in inw if x["jump"] < 3} == {45: 0, 46: 2, 47: 2, 55: 1}
     assert all(x["jump"] == 3 for x in inw if 48 <= x["tick"] <= 54)
     assert {x["tick"]: x["jump"] for x in b if x["jump"] and not x["in_window"]} == {44: 2}
+
+
+def test_boundary_sweep_call_accounting():
+    # The three committed boundary sweeps were run when the agent still made
+    # one model call on the end-of-episode message, so n_calls is the judged
+    # frames (every tick up to the commit) plus exactly one. The paper quotes
+    # both totals. Clock sweeps log emulated calls only and have no such call.
+    expected = {
+        "sonnet_boundary_sweep.jsonl": (6540, 6612),
+        "sonnet_boundary_sweep_fog1.jsonl": (6597, 6669),
+        "haiku_boundary_sweep.jsonl": (6468, 6540),
+    }
+    for name, (judged, calls) in expected.items():
+        rows = _rows(os.path.join("..", "realmodel", name))
+        assert all(r["n_calls"] == r["decision_tick"] + 2 for r in rows), name
+        assert sum(r["decision_tick"] + 1 for r in rows) == judged, name
+        assert sum(r["n_calls"] for r in rows) == calls, name

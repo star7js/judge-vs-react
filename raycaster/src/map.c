@@ -99,6 +99,7 @@ void map_load_pit(Map *map, PitConfig cfg)
     // room's border walls.
     map->exit_x = far + PIT_EXIT_GAP;
     if (map->exit_x > map->width - 2) map->exit_x = map->width - 2;
+    if (map->exit_x < 1) map->exit_x = 1;   // a far-negative --pit-near must not index before the row
     map->exit_y = 5;
     map->walls[map->exit_y][map->exit_x] = TILE_EXIT;
 }

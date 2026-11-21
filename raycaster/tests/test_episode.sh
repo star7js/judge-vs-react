@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$0")/.."            # raycaster/
 BIN=./build/keen-raycaster
 # Oracle with no delay must clear the default pit, deterministically.
 A=$(SDL_VIDEODRIVER=dummy $BIN --episode --policy oracle --pit-near 10 --pit-width 2 --seed 1 --delay 0 --repeat 1)
