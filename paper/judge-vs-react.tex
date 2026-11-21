@@ -43,7 +43,11 @@ lands in the window. Same score, different agents. A second, cheaper judge
 (Haiku~4.5) through the same grid commits two ticks later and its cliff
 moves by exactly two ticks ($\rstar = 0.96$); its early commits are
 far-field first-passage errors no delay can rescue, and it clears 26/72, as
-the same equation predicts from its commit distribution. Removing the delay knob
+the same equation predicts from its commit distribution. On a second
+scene, a rendered aiming task, the Sonnet judge commits one to five ticks
+inside a twelve-tick window instead of at its edge, and its cliff moves to
+$\rstar = 0.65$, where its commit offset puts it; all 72 of those episodes
+obey the same rule. Removing the delay knob
 and sweeping the clock instead, so that the judge's own latency is the
 delay, the same judge clears 0/30 episodes until $r$ falls below $1/3$ (two
 consecutive JUMPs must fit the window) and 18/18 once the clock is slow
@@ -131,6 +135,11 @@ it:
     Sonnet's because it commits two ticks later; its early commits are
     far-field first-passage errors that no delay can rescue; 26/72, as
     Eq.~\ref{eq:sweep} predicts from its commit distribution.
+  \item \textbf{The same judge on a second scene (\S\ref{sec:aimreal}).}
+    Sonnet~4.6 on a rendered aiming task, through the same kind of delay
+    grid: every commit is inside the window, but one to five ticks into it,
+    so the cliff sits at $\rstar = 0.65$ rather than near 1, as the
+    commit-offset law predicts tick for tick.
   \item \textbf{The judge's own latency through the boundary
     (\S\ref{sec:clock}).} With no injected delay and the clock rate swept
     instead, the judge's real-time flip lands at $r = 1/3$, the bound the
@@ -535,6 +544,69 @@ far-field commits, not a different timing law.
   \label{fig:haiku}
 \end{figure}
 
+\subsection{The same judge on a second scene}\label{sec:aimreal}
+
+Everything above is one scene. To see whether the commit-offset account
+survives a change of scene with the judge held fixed, we rendered the
+aiming task of Appendix~\ref{sec:aim} as a first-person view: the player
+turns in place at $\omega = 0.01$\,rad/tick, a crosshair line runs down the
+center of the frame, and one target tile in the far wall subtends
+$2h = 0.1176$\,rad, so the window is 11.76 ticks wide and ticks 45--55 of
+the sweep are inside it. The single action is FIRE, applied $D$ ticks after
+the commit, and $r = \omega D / 2h$. The judge is Sonnet~4.6 at high effort
+with the same two-consecutive commit rule; only the prompt changes, to name
+this scene's cue (FIRE iff the target shows on both sides of the line). On
+the scene's 68-frame battery ($\times 3$ samples) it is unanimous on ticks
+48--54, late on the first in-window frames (tick 45: 0/3; 46 and 47: 2/3)
+and fires on one pre-window frame (tick 44: 2/3). The grid is 12 delays
+$\times$ 6 seeds, $D \in \{0, \dots, 14\}$, $r$ from 0 to 1.19 (72
+episodes; 3{,}528 judged frames).
+
+\paragraph{Every commit is in the window, but not at its edge.} All 72
+episodes commit inside the window and none early. The commit point spreads
+over five ticks: tick 49 in 33 episodes, 48 in 20, 47 in 9, 46 in 6 and 45
+in 4, that is, 0.9 to 4.9 ticks past the near edge, with the mode 4.9
+ticks in ($\delta = 0.41$ of the window). On the pit the same judge
+committed at the leading edge ($\delta \approx 0.02$). The oracle on this
+scene fires at tick 45 and hits through $D = 10$ ($r = 0.85$), missing from
+$D = 11$ ($r = 0.94$).
+
+\paragraph{The cliff sits where the commit offset puts it.} The judge hits
+\textbf{30/30 through $D = 6$ ($r = 0.51$), 5/6 at $D = 7$, 2/6 at $D = 8$
+and 0/30 from $D = 9$ ($r = 0.77$)}; the logistic fit gives
+$\rstar = 0.65$ against $1.05$ for the same judge on the pit
+(Fig.~\ref{fig:aimreal}). The modal commit predicts a cliff at
+$1 - \delta = 0.59$, and commits from tick 49 do hit at $D = 6$
+($r = 0.51$) and miss at $D = 7$ ($r = 0.60$). The two intermediate cells
+are the commit spread and nothing else: a commit at tick $t$ hits iff
+$t + D \le 55$, so the one miss at $D = 7$ is the episode that committed
+at tick 49, and the two hits at $D = 8$ are the episodes that committed at
+ticks 46 and 47. All 72 episodes obey that rule, which is
+$w_{lo} \le x_c + \omega D \le w_{hi}$ in ticks, and Eq.~\ref{eq:sweep} on
+the commit distribution predicts 36.0 hits against the 37 observed. Here
+the commit varies \emph{within} the window, so the pooled transition is
+graded over two delays where the pit's was a step; each episode is still
+deterministic given its commit.
+
+The judge did not get worse on this scene: every one of its 72 commits
+would have hit with no delay. It got later, by four ticks at the mode, and
+four ticks is a third of this window. A change of scene and prompt moved
+$\delta$ from 0.02 to 0.41 and the cliff from $r \approx 1$ to $0.65$ with
+no change to the model or the commit rule.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.98\linewidth]{fig_aim_real.png}
+  \caption{The Sonnet~4.6 judge on the rendered aiming scene. Left: outcome
+  vs.\ $r = \omega D / 2h$; all 72 commits are in-window, the logistic fit
+  gives $\rstar = 0.65$, the dashed line is the cliff predicted from the
+  modal commit offset, and the dotted line is the same judge's $\rstar$ on
+  the pit. Right: commit position in ticks past the window's near edge
+  against the window (shaded): the commit point spreads over five ticks
+  inside the window, with the mode 4.9 ticks in.}
+  \label{fig:aimreal}
+\end{figure}
+
 \subsection{The judge's own latency through the boundary}\label{sec:clock}
 
 Every sweep above injects the delay; the judge's real latency enters only
@@ -830,9 +902,12 @@ better cue: no amount of time helps a judge that answers WAIT on every frame
 (Qwen). A timing failure wants a slower clock: a judge that commits a
 fraction $\delta$ of the window past its leading edge is viable iff
 $r < 1 - \delta$, plus the same-tick tolerance. We measured that law on
-three judges. The oracle and the Sonnet judge commit at the leading edge
-($\delta \approx 0.02$) and sit at $\rstar \approx 1.05$; Haiku commits two
-ticks later and sits at $0.96$ (\S\ref{sec:haiku}). The location of a real
+three judges and two scenes. On the pit the oracle and the Sonnet judge
+commit at the leading edge ($\delta \approx 0.02$) and sit at
+$\rstar \approx 1.05$; Haiku commits two ticks later and sits at $0.96$
+(\S\ref{sec:haiku}). On the aiming scene the same Sonnet judge commits a
+modal 4.9 ticks into an 11.8-tick window ($\delta = 0.41$) and sits at
+$0.65$ (\S\ref{sec:aimreal}). The location of a real
 judge's cliff is set by where it commits, not by how good it is, and the
 shape of its transition by the spread of its commit point: Eq.~\ref{eq:sweep}
 turns a point-mass commit into a step and a spread into a curve.
@@ -845,8 +920,8 @@ is predicted to within one episode from its commit distribution, and past
 the boundary the only survivors are misjudgments that the delay happened to
 carry into the window. A benchmark that reports a score cannot tell a good
 judge from a lucky one; a per-episode decomposition into commit position and
-delay can, because every one of the 216 injected-delay episodes in this
-paper obeys the one rule $w_{lo} \le x_c + vD \le x_{hi}$.
+delay can, because every one of the 288 injected-delay episodes in this
+paper, on either scene, obeys the one rule $w_{lo} \le x_c + vD \le x_{hi}$.
 
 In real time the arithmetic is harsher, and \S\ref{sec:clock} measures how.
 With the judge's own latency in the loop the window must hold $k$ latencies
@@ -878,8 +953,9 @@ deliberates when the frame is ambiguous.
 
 \begin{itemize}
   \item \textbf{The real-model sweeps (\S\ref{sec:real}, \S\ref{sec:fog},
-    \S\ref{sec:haiku}) are two models at one pit width, at two fog
-    levels.} Both judges use a revised prompt (the latency-battery prompt
+    \S\ref{sec:haiku}, \S\ref{sec:aimreal}) are two models at one pit width
+    and two fog levels, and one of them on one further scene at one target
+    width.} Both judges use a revised prompt (the latency-battery prompt
     elicits no JUMPs near the window from any hosted model) plus a
     two-consecutive-JUMP commit rule, developed against and validated on the
     same 108 approach frames the sweep draws from --- a judge tuned to this
@@ -890,15 +966,19 @@ deliberates when the frame is ambiguous.
     The anticipated \emph{noisy} psychometric curve did not materialize in
     either sweep: fog spread the commit point, but mostly \emph{before} the
     window, and outcome is a deterministic function of commit position and
-    delay, so the in-window transition stayed a step. A smooth in-window
-    curve needs a judge whose commit varies within the window.
+    delay, so the in-window transition stayed a step. On the aiming scene
+    the commit does vary within the window, over five ticks, and the pooled
+    transition is graded over two delays (\S\ref{sec:aimreal}); that is
+    one judge, one prompt and six seeds per delay, and the aiming judge's
+    prompt was tuned on the same 68 frames the sweep draws from.
   \item \textbf{The location $r \approx 1$ is definitional for leading-edge
     policies.} The agreement between the pit and aiming oracles
     (\S\ref{sec:calib}, Appendix~\ref{app:calib}) checks the apparatus; it is not
     evidence that real agents on other tasks share a boundary. Whether real
     judges on richer, multi-decision tasks have a stable commit point --- the
     quantity that would make $r$ predictive for them --- is untested;
-    \S\ref{sec:commit} shows one judge on one scene does.
+    \S\ref{sec:commit} and \S\ref{sec:aimreal} show one judge does on two
+    single-decision scenes, with a different offset on each.
   \item \textbf{The first-passage curves assume independent per-frame
     errors.} The final judge's residual errors cluster in the tile before the
     window, so the curves in Fig.~\ref{fig:firstpassage} are an idealization of
@@ -931,9 +1011,10 @@ deliberates when the frame is ambiguous.
 
 \section{Future work}
 
-Extending the real-model sweeps to more models and pit widths; a cue without
-a sharp onset, to spread the commit point inside the window rather than
-before it (the quantity that would turn the step into a psychometric curve); a multi-provider latency
+Extending the real-model sweeps to more models, pit and target widths; more
+seeds on the aiming scene, where the commit point already spreads inside the
+window, to trace the graded transition of \S\ref{sec:aimreal} as a
+psychometric curve; a multi-provider latency
 panel (Gemini/GPT + more open VLMs); a human psychophysics arm; and
 multi-decision tasks, to test whether real judges have a stable enough commit
 point for $r$ to stay predictive beyond single reflexes.
@@ -949,8 +1030,8 @@ latencies (\code{vlm\_latency.jsonl}, 100 rows across 5 models), the oracle
 sweeps (default grid and the 1-tick \code{oracle\_edge\_sweep.jsonl}), the aim
 sweep, and the real-model sweep
 (\code{eval/pit/realmodel/}: driver, revised judge, 108-frame battery
-validation, the 72-episode JSONL, and the fog-1 battery and 72-episode fog
-sweep) and the API perception battery (\code{run\_perception\_api.py},
+validation, the 72-episode JSONL, the fog-1 battery and 72-episode fog
+sweep, and the aiming scene's battery and 72-episode sweep) and the API perception battery (\code{run\_perception\_api.py},
 \code{perception\_judgments\_v2.jsonl}) are committed. The local-VLM paths
 (Ollama) and the Claude subagent judges run without an API key; the hosted-API
 latency numbers and the real-model sweep required one.

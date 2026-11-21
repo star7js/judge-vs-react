@@ -46,6 +46,9 @@ def aim_summary(rows: list[dict]) -> dict:
     r_of = lambda x: ratio(x, source="delay")
     fit = transition_fit([r_of(x) for x in inw], [x["cleared"] for x in inw]) if len({x["cleared"] for x in inw}) > 1 else None
     mode = Counter(offs).most_common(1)[0][0]
+    # The modal commit's exact position (offs are rounded to whole ticks for
+    # the histogram; the first in-window tick is 0.88 ticks past the edge).
+    x_mode = Counter(r["decision_x"] for r in rows).most_common(1)[0][0]
     by_delay = {}
     for r in inw:
         c = by_delay.setdefault(r["delay"], [0, 0])
@@ -53,7 +56,10 @@ def aim_summary(rows: list[dict]) -> dict:
     return {
         "n": len(rows), "n_in": len(inw), "n_out": len(out), "cleared_total": sum(r["cleared"] for r in rows),
         "width_ticks": width_ticks, "commit_offsets": dict(sorted(Counter(offs).items())),
-        "commit_mode_ticks": mode, "r_pred_from_mode": (width_ticks - mode) / width_ticks,
+        "commit_mode_ticks": mode, "commit_mode_delta": (x_mode - w_lo) / (w_hi - w_lo),
+        "r_pred_from_mode": (w_hi - x_mode) / (w_hi - w_lo),
+        "commit_ticks": dict(sorted(Counter(r["decision_tick"] for r in rows).items())),
+        "judged_frames": sum(r["decision_tick"] + 1 for r in rows),
         "r_star": fit["r_star"] if fit else None, "slope": fit["slope"] if fit else None,
         "in_window_by_delay": dict(sorted(by_delay.items())),
         "early_cleared": sum(r["cleared"] for r in out),
