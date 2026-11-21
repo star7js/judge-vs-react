@@ -20,6 +20,11 @@ which 5 are delay-rescued.
 | `fig_realmodel.py` | Regenerates `../figures/fig_realmodel.png` from the JSONL, `fig_realmodel_fog.png` (clear vs fog) when the fog sweep exists, and `fig_realmodel_haiku.png` (Sonnet vs Haiku) when the Haiku sweep exists. |
 | `haiku_boundary_sweep.jsonl` | The same 72-episode grid with Haiku 4.5 as the judge (`boundary_sweep.py --model claude-haiku-4-5-20251001`): commits at 9.08 (57/72), in-window r* = 0.96, 10 far-field early commits, 26/72. |
 | `battery_v4_high_fog0_haiku.json` | Haiku 4.5 on the 108 frames × 3 samples (the gate before its sweep): far-field false JUMPs at 5.02–8.66, first in-window frame 0/3. |
+| `sonnet_aim_sweep.jsonl` | The judge on the second scene (`aim_sweep.py`): the rendered aim task (turn in place, FIRE while the center line is over the target tile; `raycaster --task aim --policy agent`), 12 delays × 6 seeds: 72/72 commits in-window on ticks 45–49 (mode 49), 37/72 hits, 30/30 through D = 6, 5/6 and 2/6 at D = 7 and 8, 0/30 from D = 9, r* = 0.65. Same row schema (speed = omega, w_lo/w_hi = angular window, decision_x = aim angle) plus `call_log` of [aim angle, latency_s, action]. |
+| `aim_sweep.py` | Driver for the aim-scene sweep (`--pilot`, `--effort`, `--delays`). |
+| `aim_battery.py` | Renders the 68 frames of the aim sweep (`--aim-frames`) and runs the aim judge on them; the gate before an aim sweep. |
+| `battery_aim_high.json` | The aim judge (prompt v2, the both-sides rule) × 3 samples: unanimous on ticks 48-54, late on 45-47, one pre-window FIRE frame. `battery_aim_v1_high.json` is the first prompt ("touching"), which fired 8 ticks early. |
+| `fig_aim_real.py` | Regenerates `../figures/fig_aim_real.png` from the aim sweep. |
 | `sonnet_clock_sweep.jsonl` | Clock-rate sweep (`clock_sweep.py`): the same judge in an emulated real-time loop, 12 clock periods × 6 seeds, each call's measured latency replayed as its own delay. 31/72 cleared; flip at r = 1/3; deliberation stall on x ∈ [7.9, 8.4]. Rows carry `clock_s`, `effort`, `judge_x`, `delay_ticks_median`, and a per-call `call_log` of [px, latency_s, delay_ticks, raw answer, committed action, retries]. |
 | `sonnet_clock_sweep_low.jsonl` | The same clock-rate sweep at low effort (`clock_sweep.py --effort low`): no stall (1.0 s flat) but 54% false JUMP on x ∈ [7.5, 8.92), 58/72 early commits, 8/72 cleared. |
 | `clock_sweep.py` | Driver for the clock-rate sweep (`--effort`, `--clocks`, `--backend rules --latency` for a free self-test). |
@@ -48,6 +53,17 @@ frames (`decision_tick + 1`) plus one, and that extra latency sample is in
 Sonnet fog 1, Haiku) against 6,612 / 6,669 / 6,540 calls. No decision, outcome
 or fit depends on it. `sweep_agent.py` no longer makes that call, so new runs
 log judged frames only. The clock-rate sweeps were never affected.
+
+`sonnet_aim_sweep.jsonl` straddles that change: the 36 rows at D ≤ 7 were
+run in October 2026 and carry the extra call (`n_calls == decision_tick + 2`);
+the 36 rows at D ≥ 8 were run on 2026-11-21 and do not
+(`n_calls == decision_tick + 1`). 3,528 judged frames, 3,564 calls. The
+October run also wrote 32 rows at D ≥ 8 while the API was failing: the agent
+died or never answered, and the sim of that date recorded each as a miss with
+`decision_tick: -1`. Those rows were removed and the episodes re-run. Two
+kept rows (D = 7, seeds 5 and 6) include calls that stalled for hours in
+that outage; their decisions are unaffected (blocking mode) but their
+`L_mean_s` is not a latency measurement.
 
 Practical notes: one episode ≈ 93 vision calls ≈ 5–12 minutes of wall-clock
 (sim time is decoupled from wall-clock, so API latency only costs patience,

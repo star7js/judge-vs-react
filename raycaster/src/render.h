@@ -17,4 +17,9 @@ void render_frame(uint32_t *pixels, const Map *map,
                   float px, float py, float dir_x, float dir_y,
                   float plane_x, float plane_y, float cam_off, float fog);
 
+// Overlay the aim task's crosshair: a 3-px bright yellow vertical line down
+// the exact center column (the column whose ray is the view direction).
+// Drawn after render_frame.
+void render_crosshair(uint32_t *pixels);
+
 #endif

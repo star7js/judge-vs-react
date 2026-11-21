@@ -1,5 +1,6 @@
 // raycaster/src/aim.c
 #include "aim.h"
+#include <math.h>
 #include <stdio.h>
 
 // Upper bound on ticks so a misconfigured sweep can't hang a batch run.
@@ -13,12 +14,33 @@ Window aim_window(AimConfig cfg)
 
 // The oracle: fire the first consulted tick the aim is at/past the window's
 // near edge (the angular analog of the pit oracle's `px >= w_lo`). Stateless.
-static int aim_oracle(float aim, Window w)
+static int aim_oracle(void *ctx, int tick, float aim, Window w)
 {
+    (void)ctx; (void)tick;
     return aim >= w.w_lo;
 }
 
 EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat)
+{
+    return aim_run(cfg, delay, repeat, aim_oracle, NULL);
+}
+
+AimConfig aim_scene_config(AimConfig base, int target_x, float run_up)
+{
+    // Player at (target_x + 0.5, AIM_PLAYER_Y); the tile's face is the
+    // segment y = 1, x in [target_x, target_x + 1]. Angles via atan2 so the
+    // window is exactly what the center ray sees.
+    float cx = (float)target_x + 0.5f, cy = AIM_PLAYER_Y;
+    float lo = atan2f(1.0f - cy, (float)target_x - cx);
+    float hi = atan2f(1.0f - cy, (float)target_x + 1.0f - cx);
+    AimConfig c = base;
+    c.theta_t = 0.5f * (lo + hi);
+    c.half_width = 0.5f * (hi - lo);
+    c.a0 = c.theta_t - run_up;
+    return c;
+}
+
+EpisodeResult aim_run(AimConfig cfg, int delay, int repeat, aim_decide_fn decide, void *ctx)
 {
     if (repeat < 1) repeat = 1;
 
@@ -43,7 +65,7 @@ EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat)
         // a0 as-is, every later tick has already rotated by omega.
         if (t > 0) aim += cfg.omega;
 
-        if (!decided && (t % repeat == 0) && aim_oracle(aim, win)) {
+        if (!decided && (t % repeat == 0) && decide(ctx, t, aim, win)) {
             decided = 1;
             res.decision_tick = t;      // when the decision was MADE
             res.decision_x = aim;       // aim angle at the decision
@@ -59,6 +81,10 @@ EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat)
             if (aim >= win.w_lo && aim <= win.w_hi) res.cleared = 1;
             else res.fell = 1;
         }
+
+        // No decision and the aim has swept a full window past the far edge:
+        // the shot can no longer land, so end the episode as a miss.
+        if (!decided && aim > win.w_hi + (win.w_hi - win.w_lo)) res.fell = 1;
 
         res.ticks = t + 1;
     }

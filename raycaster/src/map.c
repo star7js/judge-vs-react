@@ -37,6 +37,29 @@ void map_load_test(Map *map)
     map->walls[map->exit_y][map->exit_x] = TILE_EXIT;
 }
 
+void map_load_aim(Map *map, int target_x)
+{
+    memset(map, 0, sizeof(*map));
+    map->width = 24;
+    map->height = 11;
+    for (int x = 0; x < map->width; x++) {
+        map->walls[0][x] = 1;
+        map->walls[map->height - 1][x] = 1;
+    }
+    for (int y = 0; y < map->height; y++) {
+        map->walls[y][0] = 1;
+        map->walls[y][map->width - 1] = 1;
+    }
+    if (target_x < 1) target_x = 1;
+    if (target_x > map->width - 2) target_x = map->width - 2;
+    map->walls[0][target_x] = TILE_TARGET;
+    map->spawn_x = (float)target_x + 0.5f;
+    map->spawn_y = AIM_PLAYER_Y;
+    map->spawn_angle = -1.5707963f;   // facing the far wall (-y)
+    map->exit_x = target_x;           // unused by the aim task; schema parity
+    map->exit_y = 0;
+}
+
 // Gap (tiles) from the pit's far edge to the exit beacon — matches the
 // hand-authored layout in map_load_test (pit far edge 12, exit 21).
 #define PIT_EXIT_GAP 9

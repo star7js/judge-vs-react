@@ -40,6 +40,13 @@ The judgment never changed; only the clock did.
   1.05, 24/24 then 0/31); its early commits are far-field first-passage
   errors no delay can rescue; 26/72, as the sweep equation predicts from its
   commit distribution.
+- **The same judge on a second scene:** Sonnet 4.6 on a rendered aiming
+  task commits inside the window in 72/72 episodes, but one to five ticks
+  into a 12-tick window (mode 4.9 ticks, `δ = 0.41`), so its cliff sits at
+  `r* = 0.65` instead of 1.05: 30/30 through `r = 0.51`, 5/6 and 2/6 at the
+  next two delays, 0/30 from `r = 0.77`. Every episode obeys the same rule
+  as the pit's (hit iff commit tick + delay ≤ 55). The cliff is set by where
+  the judge commits, not by how well it sees.
 - **The judge's own latency through the boundary:** with no injected delay
   and the sim's clock rate swept instead, so that each decision's real
   latency is its own delay, the same judge clears 0/30 until `r < 1/3` (two
@@ -86,12 +93,12 @@ cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 # regenerate the figures + fits from the committed data
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
-# ...and the real-model figures (fig_realmodel*, fig_clock, fig_firstpassage)
-for f in fig_realmodel fig_clock fig_firstpassage; do
+# ...and the real-model figures (fig_realmodel*, fig_clock, fig_firstpassage, fig_aim_real)
+for f in fig_realmodel fig_clock fig_firstpassage fig_aim_real; do
   uv run --with matplotlib --with numpy --with scipy python eval/pit/realmodel/$f.py
 done
 
-# tests (6 shell + 45 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (7 shell + 48 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

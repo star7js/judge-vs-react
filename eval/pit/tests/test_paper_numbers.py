@@ -2,6 +2,7 @@
 committed data, through the same code paths analyze.py uses. If a data
 regen or an analyze.py change shifts any published value, this fails
 before the paper silently drifts from the repo."""
+import json
 import os
 import statistics
 
@@ -485,6 +486,21 @@ def test_haiku_boundary_sweep():
     assert round(e["expected"], 1) == 27.1
 
 
+def test_aim_judge_battery():
+    # The aim judge (sweep_agent.AIM_PROMPT, high effort) on the 68 frames of
+    # the aim sweep x 3 samples: unanimous FIRE on ticks 48-54, late on the
+    # first in-window frames (45: 0/3; 46, 47: 2/3; 55: 1/3), one pre-window
+    # frame with FIREs (44: 2/3), none after the window.
+    path = os.path.join(DATA, "..", "realmodel", "battery_aim_high.json")
+    b = json.load(open(path))
+    assert len(b) == 68 and all(x["n"] == 3 for x in b)
+    inw = [x for x in b if x["in_window"]]
+    assert [x["tick"] for x in inw] == list(range(45, 56))
+    assert {x["tick"]: x["jump"] for x in inw if x["jump"] < 3} == {45: 0, 46: 2, 47: 2, 55: 1}
+    assert all(x["jump"] == 3 for x in inw if 48 <= x["tick"] <= 54)
+    assert {x["tick"]: x["jump"] for x in b if x["jump"] and not x["in_window"]} == {44: 2}
+
+
 def test_boundary_sweep_call_accounting():
     # The three committed boundary sweeps were run when the agent still made
     # one model call on the end-of-episode message, so n_calls is the judged
@@ -500,3 +516,52 @@ def test_boundary_sweep_call_accounting():
         assert all(r["n_calls"] == r["decision_tick"] + 2 for r in rows), name
         assert sum(r["decision_tick"] + 1 for r in rows) == judged, name
         assert sum(r["n_calls"] for r in rows) == calls, name
+
+
+def test_aim_realmodel_sweep():
+    # The Sonnet judge on the rendered aim scene (section "The same judge on
+    # a second scene"): 72/72 commits in-window on ticks 45-49 (mode 49,
+    # delta = 0.41 of the 11.76-tick window); 30/30 through D = 6, 5/6 at
+    # D = 7, 2/6 at D = 8, 0/30 from D = 9; r* = 0.65; modal commit predicts
+    # 0.59; every episode hits iff commit tick + D <= 55; Eq. (sweep)
+    # predicts 36.0 against 37 observed; 3,528 judged frames.
+    from eval.pit.analyze import delay_sweep_expectation, ratio, transition_fit
+    rows = _rows(os.path.join("..", "realmodel", "sonnet_aim_sweep.jsonl"))
+    assert len(rows) == 72 and sum(r["cleared"] for r in rows) == 37
+    assert all(r["in_window"] == 1 for r in rows)
+    w_lo, w_hi, omega = rows[0]["w_lo"], rows[0]["w_hi"], rows[0]["speed"]
+    assert round((w_hi - w_lo) / omega, 2) == 11.76
+    ticks = {}
+    for r in rows:
+        ticks[r["decision_tick"]] = ticks.get(r["decision_tick"], 0) + 1
+    assert ticks == {45: 4, 46: 6, 47: 9, 48: 20, 49: 33}
+    by_delay = {}
+    for r in rows:
+        c = by_delay.setdefault(r["delay"], [0, 0])
+        c[0] += r["cleared"]; c[1] += 1
+    assert sorted(by_delay) == [0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14]
+    assert all(by_delay[d] == [6, 6] for d in (0, 2, 4, 5, 6))
+    assert by_delay[7] == [5, 6] and by_delay[8] == [2, 6]
+    assert all(by_delay[d] == [0, 6] for d in (9, 10, 11, 12, 14))
+    # The two graded cells are the commit spread: the D = 7 miss committed at
+    # tick 49, the D = 8 hits at ticks 46 and 47.
+    assert [r["decision_tick"] for r in rows if r["delay"] == 7 and not r["cleared"]] == [49]
+    assert sorted(r["decision_tick"] for r in rows if r["delay"] == 8 and r["cleared"]) == [46, 47]
+    assert all(r["cleared"] == (r["decision_tick"] + r["delay"] <= 55) for r in rows)
+    assert all(r["cleared"] == (w_lo <= r["decision_x"] + omega * r["delay"] <= w_hi) for r in rows)
+    fit = transition_fit([ratio(r, source="delay") for r in rows], [r["cleared"] for r in rows])
+    assert round(fit["r_star"], 2) == 0.65
+    x_mode = max(set(r["decision_x"] for r in rows), key=[r["decision_x"] for r in rows].count)
+    assert round((x_mode - w_lo) / (w_hi - w_lo), 2) == 0.41       # delta
+    assert round((w_hi - x_mode) / (w_hi - w_lo), 2) == 0.59       # predicted cliff
+    assert round((x_mode - w_lo) / omega, 1) == 4.9                # ticks into the window
+    e = delay_sweep_expectation(rows, sorted(by_delay), per_delay=6, speed=omega, w_lo=w_lo, x_hi=w_hi)
+    assert round(e["expected"], 1) == 36.0
+    # Call accounting: the D <= 7 rows predate the end-of-episode fix.
+    assert sum(r["decision_tick"] + 1 for r in rows) == 3528
+    assert sum(r["n_calls"] for r in rows) == 3564
+    assert all(r["n_calls"] == r["decision_tick"] + (2 if r["delay"] <= 7 else 1) for r in rows)
+    # No row comes from a dead agent: every episode has a commit.
+    assert all(r["decision_tick"] >= 0 for r in rows)
+    # r values quoted in the text and table.
+    assert [round(omega * d / (w_hi - w_lo), 2) for d in (6, 7, 8, 9, 10, 11, 14)] == [0.51, 0.60, 0.68, 0.77, 0.85, 0.94, 1.19]

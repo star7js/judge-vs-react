@@ -68,6 +68,8 @@ def main():
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--fog", type=float, default=FOG,
                     help="fog level for every episode (default 0; the fog-1 sweep uses 1.0)")
+    ap.add_argument("--seeds", default=None,
+                    help="comma-separated seed override (default 1-6; e.g. 7,8,9,10,11,12 for a replication)")
     ap.add_argument("--delays", default=None,
                     help="comma-separated delay grid override (default: the paper's 12 delays)")
     ap.add_argument("--model", default=MODEL,
@@ -77,13 +79,14 @@ def main():
     a = ap.parse_args()
 
     delays = [int(x) for x in a.delays.split(",")] if a.delays else DELAYS
+    seeds = [int(x) for x in a.seeds.split(",")] if a.seeds else SEEDS
     short = a.model.split("-")[1]   # claude-sonnet-4-6 -> sonnet
     out_path = Path(a.out) if a.out else HERE / (
         f"{short}_boundary_sweep.jsonl" if a.fog == 0 else f"{short}_boundary_sweep_fog{a.fog:.0f}.jsonl")
     if a.pilot:
         grid = [(0, s, a.fog, a.model) for s in range(1, a.pilot + 1)]
     else:
-        grid = [(d, s, a.fog, a.model) for d in delays for s in SEEDS]
+        grid = [(d, s, a.fog, a.model) for d in delays for s in seeds]
 
     done = set()
     if out_path.exists():

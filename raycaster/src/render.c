@@ -11,7 +11,7 @@ static uint32_t wall_colors[] = {
     0xFF884488,  // 5
     0xFF44CCCC,  // 6
     0xFFCC8844,  // 7
-    0xFF8888CC,  // 8
+    0xFFFF30FF,  // 8 TARGET — loud magenta, the aim task's target tile
     0xFF00FF66,  // 9 EXIT — loud green beacon
 };
 #define NUM_WALL_COLORS ((int)(sizeof(wall_colors) / sizeof(wall_colors[0])))
@@ -36,6 +36,14 @@ static inline uint32_t blend(uint32_t a, uint32_t b, float t)
     uint32_t g = (uint32_t)(((a >> 8) & 0xFF) * u + ((b >> 8) & 0xFF) * t);
     uint32_t bl = (uint32_t)((a & 0xFF) * u + (b & 0xFF) * t);
     return 0xFF000000u | (r << 16) | (g << 8) | bl;
+}
+
+void render_crosshair(uint32_t *pixels)
+{
+    const uint32_t c = 0xFFFFE030;
+    for (int y = 0; y < SCREEN_H; y++)
+        for (int x = SCREEN_W / 2 - 1; x <= SCREEN_W / 2 + 1; x++)
+            pixels[y * SCREEN_W + x] = c;
 }
 
 #define ATMOSPHERE 0xFF20243A   // the ceiling/fog color the distance fades toward
@@ -112,7 +120,7 @@ void render_frame(uint32_t *pixels, const Map *map,
         if (ci < 0 || ci >= NUM_WALL_COLORS) ci = 1;
         uint32_t base = wall_colors[ci];
 
-        int is_exit = (hit.wall_type == TILE_EXIT);
+        int is_exit = (hit.wall_type == TILE_EXIT || hit.wall_type == TILE_TARGET);
         float fog_k = (is_exit ? 0.06f : 0.15f) * fog_mul;
         float factor = 1.0f / (1.0f + hit.distance * fog_k);
         if (hit.side == 1) factor *= 0.65f;

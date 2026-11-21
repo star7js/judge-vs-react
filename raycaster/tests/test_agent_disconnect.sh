@@ -9,8 +9,11 @@ cd "$(dirname "$0")/.."            # raycaster/
 BIN=./build/keen-raycaster
 export KEEN_AGENT_SOCK=/tmp/keen_ray_test_disconnect_$$.sock
 OUT=$(mktemp)
+# Both agent-driven tasks: the pit and the rendered aim scene.
+for TASK_ARGS in "--pit-near 10 --pit-width 2" "--task aim"; do
+: >"$OUT"
 SDL_VIDEODRIVER=dummy $BIN --episode --policy agent \
-  --pit-near 10 --pit-width 2 --seed 1 --delay 0 --repeat 1 >"$OUT" 2>/dev/null &
+  $TASK_ARGS --seed 1 --delay 0 --repeat 1 >"$OUT" 2>/dev/null &
 GAME=$!
 # Answer ten ticks with "none", then hang up.
 python3 - <<'PY'
@@ -31,5 +34,6 @@ s.close()
 PY
 RC=0; wait $GAME || RC=$?
 test "$RC" -eq 2                                   # distinct "agent died" exit code
-if grep -q '"policy"' "$OUT"; then echo "FAIL: result row emitted for a dead agent"; exit 1; fi
+if grep -q '"policy"' "$OUT"; then echo "FAIL: result row emitted for a dead agent ($TASK_ARGS)"; exit 1; fi
+done
 echo "PASS test_agent_disconnect"
