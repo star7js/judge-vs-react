@@ -610,6 +610,57 @@ def delay_sweep_expectation(rows: list[dict], delays: list[int], *, per_delay: i
             "dense_expected": dense, "dense_limit": per_delay * (x_hi - w_lo) / speed}
 
 
+def commit_first_passage(p: list[float], k: int = 2) -> tuple[dict[int, float], float]:
+    """Commit-tick distribution of a per-frame judge under a k-consecutive
+    commit rule, from per-frame JUMP/FIRE probabilities `p[t]` (one per tick,
+    in order), assuming the answers on different frames are independent.
+    Returns ({tick: P(commit on that tick)}, P(never commits)). A commit on
+    tick t means the k answers on ticks t-k+1 .. t were all JUMP and no
+    earlier run of k was."""
+    mass = [1.0] + [0.0] * (k - 1)      # mass[s] = P(not committed, current streak = s)
+    out: dict[int, float] = {}
+    for t, pt in enumerate(p):
+        nxt = [0.0] * k
+        nxt[0] = sum(mass) * (1.0 - pt)
+        for streak, m in enumerate(mass):
+            if streak + 1 == k:
+                out[t] = out.get(t, 0.0) + m * pt
+            else:
+                nxt[streak + 1] += m * pt
+        mass = nxt
+    return {t: m for t, m in out.items() if m > 0}, sum(mass)
+
+
+def battery_prediction(battery: list[dict], rows: list[dict], hit, in_window, k: int = 2) -> dict:
+    """What an offline frame battery predicts for a closed-loop delay sweep,
+    against what the sweep did. `battery` is the per-tick list of
+    {"jump", "n"} (one entry per sim tick from tick 0); `rows` the sweep's
+    episodes; `hit(tick, delay)` says whether a commit on `tick` lands in the
+    window after `delay`; `in_window(tick)` whether a delay-0 action on that
+    tick hits. Uses nothing from `rows` but the delay grid for the
+    prediction; the observed side is for comparison."""
+    dist, never = commit_first_passage([b["jump"] / b["n"] for b in battery], k)
+    delays = sorted({r["delay"] for r in rows})
+    per_delay = len(rows) // len(delays)
+    pred_by_delay = {d: per_delay * sum(m for t, m in dist.items() if hit(t, d)) for d in delays}
+    obs_by_delay = {d: sum(r["cleared"] for r in rows if r["delay"] == d) for d in delays}
+    obs_ticks: dict[int, int] = {}
+    for r in rows:
+        obs_ticks[r["decision_tick"]] = obs_ticks.get(r["decision_tick"], 0) + 1
+    n = len(rows)
+    return {
+        "pred_dist": dict(sorted(dist.items())), "pred_never": never,
+        "pred_mode": max(dist, key=dist.get), "obs_mode": max(obs_ticks, key=obs_ticks.get),
+        "pred_mean": sum(t * m for t, m in dist.items()) / sum(dist.values()),
+        "obs_mean": sum(t * c for t, c in obs_ticks.items()) / n,
+        "pred_early": n * sum(m for t, m in dist.items() if not in_window(t)),
+        "obs_early": sum(1 for r in rows if not r["in_window"]),
+        "pred_cleared": sum(pred_by_delay.values()), "obs_cleared": sum(obs_by_delay.values()),
+        "pred_by_delay": pred_by_delay, "obs_by_delay": obs_by_delay,
+        "obs_ticks": dict(sorted(obs_ticks.items())),
+    }
+
+
 def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     """Wilson score interval for a binomial proportion."""
     if n == 0:

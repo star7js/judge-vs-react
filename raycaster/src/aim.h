@@ -45,8 +45,9 @@ EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat);
 // Scene geometry for the rendered aim task (map_load_aim): the window is the
 // angular extent of the target tile's face as seen from the player, so the
 // crosshair is over the tile iff the aim is inside [w_lo, w_hi]. Overwrites
-// theta_t, half_width and a0 (= theta_t - run_up); keeps omega and width_id.
-AimConfig aim_scene_config(AimConfig base, int target_x, float run_up);
+// theta_t, half_width and a0 (= theta_t - run_up), and sets width_id to the
+// target's width in tiles; keeps omega.
+AimConfig aim_scene_config(AimConfig base, int target_x, int target_w, float run_up);
 
 // Serialize an aim result to the SAME JSON schema as episode_result_json, so
 // the Python analysis reuses ratio()/window_width() unchanged:

@@ -276,6 +276,9 @@ static int agent_decide(void *ctx_, int tick, float px, float py,
 // window's center to the starting aim angle: 0.5 rad at omega = 0.01 is ~44
 // ticks to the near edge, the same order as the pit's ~90-frame approach.
 #define AIM_TARGET_X 12
+// Target width in tiles for the rendered aim scene (--aim-target-width; the
+// committed sweep and battery use 1).
+static int aim_target_w = 1;
 #define AIM_RUN_UP   0.5f
 
 // Render the aim scene at aim angle `a` (player fixed at the spawn, rotating
@@ -313,7 +316,7 @@ static int run_aim_frames(AimConfig aim, const char *prefix)
     SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
     SDL_Init(SDL_INIT_VIDEO);
     Map map;
-    map_load_aim(&map, AIM_TARGET_X);
+    map_load_aim(&map, AIM_TARGET_X, aim_target_w);
     static uint32_t pixels[SCREEN_W * SCREEN_H];
     Window win = aim_window(aim);
     float a = aim.a0;
@@ -370,6 +373,7 @@ static int run_episode(int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--width-id") == 0 && i + 1 < argc) aim.width_id = atoi(argv[++i]);
         else if (SDL_strcmp(argv[i], "--aim-frames") == 0 && i + 1 < argc) aim_frames = argv[++i];
         else if (SDL_strcmp(argv[i], "--aim-scene") == 0) aim_scene = 1;
+        else if (SDL_strcmp(argv[i], "--aim-target-width") == 0 && i + 1 < argc) aim_target_w = atoi(argv[++i]);
     }
 
     // Sweeping-aim task: a self-contained kinematic episode (oracle only, no
@@ -380,7 +384,7 @@ static int run_episode(int argc, char **argv)
         // window from the target tile's geometry; the kinematic oracle keeps
         // its explicit --theta/--half-width unless --aim-scene is given.
         if (aim_frames || aim_scene || SDL_strcmp(policy, "agent") == 0)
-            aim = aim_scene_config(aim, AIM_TARGET_X, AIM_RUN_UP);
+            aim = aim_scene_config(aim, AIM_TARGET_X, aim_target_w, AIM_RUN_UP);
         if (aim_frames) return run_aim_frames(aim, aim_frames);
         if (SDL_strcmp(policy, "oracle") == 0) {
             for (int e = 0; e < episodes; e++) {
@@ -405,7 +409,7 @@ static int run_episode(int argc, char **argv)
             return 1;
         }
         Map amap;
-        map_load_aim(&amap, AIM_TARGET_X);
+        map_load_aim(&amap, AIM_TARGET_X, aim_target_w);
         static uint32_t apixels[SCREEN_W * SCREEN_H];
         AgentCtx actx = { &amap, apixels, frame_out, -1, 0.0f, 0.0f, 1, 0.0f, 0 };
         EpisodeResult res = aim_run(aim, delay, repeat, aim_agent_decide, &actx);

@@ -23,8 +23,9 @@ same grid commits two ticks later and its cliff moves by exactly two ticks
 can rescue, and it clears 26/72, as the same equation predicts from its
 commit distribution. On a second scene, a rendered aiming task, the Sonnet
 judge commits one to five ticks inside a twelve-tick window instead of at its
-edge, and its cliff moves to `r* = 0.65`, where its commit offset puts it; all
-72 of those episodes obey the same rule. Removing the delay knob and sweeping the clock
+edge, and its cliff moves to `r* = 0.65`, where its commit offset puts it and
+where its offline frame battery had put it before the sweep was run; all 72 of
+those episodes obey the same rule. Removing the delay knob and sweeping the clock
 instead, so that the judge's own latency is the delay, the same judge clears
 0/30 episodes until `r` falls below 1/3 (two consecutive JUMPs must fit the
 window) and 18/18 once the clock is slow enough; in between, 10 of 11
@@ -33,7 +34,9 @@ the window, where the model answers in 2.6 s everywhere else. At low effort the 
 are misjudged instead (54% false JUMP), so the judge commits early in 58/72
 episodes and clears 8/72. In real time the budget is the longest latency on
 the approach, the longest one falls on the hardest frame, and effort trades
-that stall for a first-passage failure on the same frames.
+that stall for a first-passage failure on the same frames. The stall recurs on
+the aiming scene, on the frames around the window's near edge (median 11.7 s
+against 3.7 s).
 
 The apparatus reduces an episode to one decision, labels it in- or
 out-of-window from the sim's own dynamics, and injects a control delay `D` so
@@ -106,7 +109,9 @@ the boundary are *delay-rescued misjudgments*. Around it:
 - **The same judge on a second scene (§4.7).** Sonnet 4.6 on a rendered
   aiming task, through the same kind of delay grid: every commit is inside the
   window, but one to five ticks into it, so the cliff sits at `r* = 0.65`
-  rather than near 1, as the commit-offset law predicts tick for tick.
+  rather than near 1, as the commit-offset law predicts tick for tick and as
+  the judge's offline battery predicted before the sweep. The deliberation
+  stall recurs on this scene's ambiguous frames.
 - **The judge's own latency through the boundary (§4.8).** With no injected
   delay and the clock rate swept instead, the judge's real-time flip lands at
   `r = 1/3`, the bound the two-consecutive commit rule implies, and the
@@ -469,6 +474,53 @@ its commit.
 | `r` | 0.00 | 0.17 | 0.34 | 0.43 | 0.51 | 0.60 | 0.68 | 0.77 | 0.85 | 0.94 | 1.02 | 1.19 |
 | hits | 6/6 | 6/6 | 6/6 | 6/6 | 6/6 | 5/6 | 2/6 | 0/6 | 0/6 | 0/6 | 0/6 | 0/6 |
 
+**The cliff was called before the sweep, from the battery.** The delay grid was
+laid out around a predicted cliff "near `D ≈ 8` (`r ≈ 0.7`)", read off the
+68-frame battery and committed with the sweep driver when only 20 episodes
+existed, all at `D ≤ 5`. The prediction can be made exact. Under the
+two-consecutive rule, and assuming answers on different frames are independent,
+the battery's per-frame FIRE rates give a commit distribution
+(`analyze.commit_first_passage`): tick 47 with probability 0.44, 48 with 0.22,
+49 with 0.33, mean 47.9 against the 48.0 observed. Through the landing rule
+that is 36.7 hits on this grid against 37 observed, with 4.0 and 2.7 of 6 at
+`D = 7` and 8 against 5 and 2. What it misses is the spread: it gives no weight
+to commits on ticks 45 and 46, where 10 of the 72 fell, because three samples
+saw no FIRE on tick 45. The table repeats the exercise for every
+injected-delay sweep in the paper. A three-sample battery (324 calls on the
+pit, 204 here) fixes the modal commit, exactly for both judges on the clear pit
+and within two ticks elsewhere, and the sweep total to within 1 to 4 episodes
+of 72. It does not see the early commits in clear weather, 0 predicted against
+9 and 11: those come from per-frame rates of a few percent, below what three
+samples resolve, and from errors that cluster on neighbouring frames, which
+independence rules out.
+
+| sweep | modal commit tick (battery / sweep) | early commits (battery / sweep) | cleared of 72 (battery / sweep) |
+|---|---|---|---|
+| Sonnet 4.6, pit, clear (§4.2) | 91 / 91 | 0 / 9 | 42.0 / 41 |
+| Sonnet 4.6, pit, fog 1 (§4.5) | 89 / 90 | 48 / 35 | 44.7 / 41 |
+| Haiku 4.5, pit, clear (§4.6) | 93 / 93 | 0 / 11 | 30.0 / 26 |
+| Sonnet 4.6, aiming scene | 47 / 49 | 0 / 0 | 36.7 / 37 |
+
+(Each sweep predicted from its judge's offline battery alone: three samples per
+frame, two-consecutive commit rule, independent frames. Pit ticks 91 and 93 are
+`x = 8.94` and 9.08.)
+
+**The judge deliberates on the same kind of frame.** The sweep is blocking, so
+latency costs nothing in it, but every call's latency was logged, and it is not
+flat. On ticks 0–29 the judge answers in a median 3.7 s and 0.1% of calls
+exceed 10 s. On ticks 43–47, the two frames before the window and its first
+three, the median is 11.7 s, the 90th percentile 21.3 s and the maximum 27.9 s,
+and 71% of calls exceed 10 s; on ticks 48–49, where the battery is unanimous,
+it is back to 4.8 s. Those five frames are 9.6% of the calls and 24.6% of the
+thinking time, and they are the frames the battery is split on (tick 44: 2/3;
+45: 0/3; 46 and 47: 2/3). The two halves of the sweep were run a month apart
+and agree (medians 11.5 and 11.9 s on those ticks). This is the deliberation
+stall of §4.8, found here without a clock sweep and on a different scene with a
+different prompt: the judge is slowest where its answer is least certain, and
+on this scene three of those frames are inside the window. (Latencies are over
+3,516 judged frames; 12 calls above the client's 60 s timeout went through a
+retry and are excluded.)
+
 The judge did not get worse on this scene: every one of its 72 commits would
 have hit with no delay. It got later, by four ticks at the mode, and four ticks
 is a third of this window. A change of scene and prompt moved `δ` from 0.02 to
@@ -716,8 +768,9 @@ the next sample, so a two-consecutive commit rule puts the cliff at `r = 1/3`
 rather than 1, and "VLMs are too slow to play games" is partly a fact about the
 clock they are handed: slowing it 90× turns the same judge from 0/6 to 6/6 with
 no change to the model. But the budget is not the model's median latency. It is
-the longest latency on the approach, and that falls on the frame the judge
-finds hardest, which is the one just before the window opens: the high-effort
+the longest latency on the approach, and that falls on the frames the judge
+finds hardest, which on both scenes are the ones at the window's near edge
+(§4.7). On the pit it is the one just before the window opens: the high-effort
 judge answers in 2.6 s everywhere else and deliberates for 10–32 s there,
 walking into the pit while it thinks. Taking the deliberation away does not
 help, because the same frames are then misjudged instead (54% false JUMP at low
@@ -861,7 +914,7 @@ Action-repeat is a compute/cost lever, not a latency fix.
 - `../eval/pit/figures/fig_realmodel_fog.png` — §4.5, the same judge swept through the boundary in clear weather and fog (in-window r* 1.05 vs 1.01; commit-point histograms; 35/72 early commits under fog, 22 rescued).
 - `../eval/pit/figures/fig_firstpassage.png` — §4.3, the final judge's per-frame JUMP rate on all 108 approach frames, and the probability that a per-frame false-JUMP rate fires somewhere over the 90-frame approach under single-JUMP vs. two-consecutive commit rules.
 - `../eval/pit/figures/fig_realmodel_haiku.png` — §4.6, two judges through the same grid (Sonnet 4.6 vs Haiku 4.5): in-window fits r* 1.05 vs 0.96, commit histograms, far-field early commits.
-- `../eval/pit/figures/fig_aim_real.png` — §4.7, the Sonnet judge on the rendered aiming scene: outcome vs r (all 72 commits in-window, r*=0.65 against 1.05 on the pit, cliff predicted from the modal commit at 0.59) and the commit-position histogram (five ticks, mode 4.9 ticks into the 11.76-tick window).
+- `../eval/pit/figures/fig_aim_real.png` — §4.7, the Sonnet judge on the rendered aiming scene: outcome vs r (all 72 commits in-window, r*=0.65 against 1.05 on the pit, cliff predicted from the modal commit at 0.59) the commit-position histogram (five ticks, mode 4.9 ticks into the 11.76-tick window), and per-call latency by frame (median 3.7 s far from the window, 11.7 s on the five frames around its near edge).
 - `../eval/pit/figures/fig_clock.png` — §4.8, the judge's own latency through the boundary: outcome vs r from emulated real-time delay, fraction cleared per clock period, and per-call latency vs frame position (the deliberation stall on x ∈ [7.9, 8.4]); the low-effort sweep overlaid in red.
 - `../eval/pit/figures/fig_perception_v2.png` — §4.9, perception axis through the API (neutral vs cue prompt × clear vs fog, 3 hosted models + local Qwen2.5-VL 7B, n=100 per cell). `fig_perception.png` is the retracted subagent-judged pilot, kept for the record.
 - `../eval/pit/figures/fig_latency.png` — §4.10, real per-model decision latency vs. the time budget at this sim speed, 5 models: hosted Haiku/Sonnet/Opus (r≈4–6) and local Qwen/llama3.2-vision (r≈31/47); all past the ≈270ms budget.

@@ -66,6 +66,13 @@ AIM_PROMPT = (
 TASKS = {"pit": (VISION_PROMPT, "JUMP"), "aim": (AIM_PROMPT, "FIRE")}
 
 
+def rules_decide_aim(st: dict) -> bool:
+    # Aim scene at the default target width: fire while the aim angle (sent
+    # as px) is inside the target's window. For no-API self-tests of the aim
+    # plumbing; it reads the state, not the frame.
+    return -1.6296 <= st["px"] <= -1.5120
+
+
 def rules_decide(st: dict) -> bool:
     # Jump when grounded and the pit's near edge is within ~1 tile. Earlier than
     # that lands short inside the pit; the clear window is pit_dist in (0, 1].
@@ -358,7 +365,7 @@ def main() -> None:
     elif a.backend == "ollama":
         decide = make_ollama_decider(a.frame, a.model, a.ollama_url, a.latency_log)
     else:
-        decide = rules_decide
+        decide = rules_decide_aim if a.task == "aim" else rules_decide
 
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     for attempt in range(50):  # wait for the game to start listening

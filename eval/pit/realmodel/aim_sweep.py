@@ -36,10 +36,21 @@ MODEL = "claude-sonnet-4-6"
 # dense there, and extending past r = 1 for comparison with the pit.
 DELAYS = [0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14]
 SEEDS = [1, 2, 3, 4, 5, 6]
+# Wider targets (--target-width N tiles): the window is 23.4 ticks at N = 2
+# and 34.9 at N = 3. At width 1 the judge's modal commit is 4.9 ticks past
+# the near edge. If that lateness is a fixed number of ticks, the width-2
+# cliff sits near D = 23.4 - 4.9 = 18.5 (r ~ 0.79); if it is a fixed fraction
+# of the window (0.41), near D = 13.8 (r ~ 0.59). The grids are dense across
+# both, so the sweep tells them apart.
+DELAYS_BY_WIDTH = {
+    1: DELAYS,
+    2: [0, 8, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22],
+    3: [0, 12, 18, 20, 22, 24, 26, 28, 29, 30, 31, 33],
+}
 
 
 def run_one(job):
-    delay, seed, model, effort = job
+    delay, seed, model, effort, target_width = job
     wid = os.getpid()
     os.environ["KEEN_AGENT_SOCK"] = f"/tmp/keen_aim_sock_{wid}"
     latency_log = f"/tmp/keen_aim_lat_{wid}.jsonl"
@@ -52,7 +63,7 @@ def run_one(job):
         row = rv.run_vlm_episode(BINARY, cfg, backend="vision", model=model,
                                  latency_log=latency_log, frame_out=frame_out,
                                  agent_extra=["--task", "aim", "--effort", effort],
-                                 extra_cli=["--task", "aim"])
+                                 extra_cli=["--task", "aim", "--aim-target-width", str(target_width)])
     except RuntimeError as exc:
         return {"delay": delay, "seed": seed, "error": str(exc)[:300]}
     calls = [json.loads(l) for l in open(latency_log)] if os.path.exists(latency_log) else []
@@ -60,6 +71,7 @@ def run_one(job):
     row["n_retried_calls"] = sum(1 for c in calls if c.get("retries"))
     row["call_log"] = [[c["px"], c["latency_s"], c["action"]] for c in calls]   # px is the aim angle
     row["task"] = "aim"
+    row["target_width"] = target_width
     row["effort"] = effort
     row["wall_s"] = round(time.time() - t0, 1)
     return row
@@ -73,14 +85,17 @@ def main():
     ap.add_argument("--effort", default="high")
     ap.add_argument("--delays", default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--target-width", type=int, default=1, choices=sorted(DELAYS_BY_WIDTH),
+                    help="target width in tiles (default 1, the committed sweep)")
     a = ap.parse_args()
 
-    delays = [int(x) for x in a.delays.split(",")] if a.delays else DELAYS
+    delays = [int(x) for x in a.delays.split(",")] if a.delays else DELAYS_BY_WIDTH[a.target_width]
     short = a.model.split("-")[1]
-    tag = "" if a.effort == "high" else f"_{a.effort}"
+    tag = ("" if a.effort == "high" else f"_{a.effort}") + ("" if a.target_width == 1 else f"_w{a.target_width}")
     out_path = Path(a.out) if a.out else HERE / f"{short}_aim_sweep{tag}.jsonl"
-    grid = [(0, s, a.model, a.effort) for s in range(1, a.pilot + 1)] if a.pilot else \
-           [(d, s, a.model, a.effort) for d in delays for s in SEEDS]
+    w = a.target_width
+    grid = [(0, s, a.model, a.effort, w) for s in range(1, a.pilot + 1)] if a.pilot else \
+           [(d, s, a.model, a.effort, w) for d in delays for s in SEEDS]
     done = set()
     if out_path.exists():
         for line in open(out_path):

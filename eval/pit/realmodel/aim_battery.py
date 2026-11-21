@@ -9,6 +9,11 @@ before an aim sweep, as battery_fog.py is for the pit.
 
 Usage (repo root, ANTHROPIC_API_KEY set):
     python3 eval/pit/realmodel/aim_battery.py --samples 3
+    # dense battery on the frames around the window only (where the judge is
+    # split), for predict_from_battery's per-frame rates:
+    python3 eval/pit/realmodel/aim_battery.py --ticks 40-57 --samples 30
+    # the gate before a sweep at another target width:
+    python3 eval/pit/realmodel/aim_battery.py --target-width 2 --samples 3
 """
 import argparse
 import base64
@@ -32,9 +37,10 @@ from sweep_agent import AIM_PROMPT, thinking_kwargs  # noqa: E402
 MODEL = "claude-sonnet-4-6"
 
 
-def render(binary: str, workdir: Path) -> list[dict]:
+def render(binary: str, workdir: Path, target_width: int = 1) -> list[dict]:
     proc = subprocess.run(
-        [binary, "--episode", "--task", "aim", "--aim-frames", str(workdir / "f")],
+        [binary, "--episode", "--task", "aim", "--aim-target-width", str(target_width),
+         "--aim-frames", str(workdir / f"f_w{target_width}")],
         env={**os.environ, "SDL_VIDEODRIVER": "dummy"}, capture_output=True, text=True, check=True)
     return [json.loads(l) for l in proc.stdout.splitlines() if l.strip().startswith("{")]
 
@@ -72,14 +78,26 @@ def main() -> None:
     ap.add_argument("--binary", default=os.environ.get("KEEN_BIN", str(REPO / "raycaster/build/keen-raycaster")))
     ap.add_argument("--workdir", default="/tmp/keen_aim_battery")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--target-width", type=int, default=1,
+                    help="target width in tiles (the committed battery and sweep use 1)")
+    ap.add_argument("--ticks", default=None,
+                    help="only these ticks, as LO-HI inclusive (default: every frame of the sweep)")
     a = ap.parse_args()
 
     tag = "" if a.model == MODEL else "_" + a.model.split("-")[1]
     eff = "" if a.effort == "high" else f"_{a.effort}"
-    out = Path(a.out) if a.out else HERE / f"battery_aim_high{tag}{eff}.json"
+    wtag = "" if a.target_width == 1 else f"_w{a.target_width}"
+    # A tick-restricted battery is a different artifact from the full one.
+    ttag = f"_t{a.ticks}_n{a.samples}" if a.ticks else ""
+    out = Path(a.out) if a.out else HERE / f"battery_aim_high{tag}{eff}{wtag}{ttag}.json"
     workdir = Path(a.workdir)
     workdir.mkdir(parents=True, exist_ok=True)
-    rows = render(a.binary, workdir)
+    rows = render(a.binary, workdir, a.target_width)
+    if a.ticks:
+        lo, hi = (int(x) for x in a.ticks.split("-"))
+        rows = [r for r in rows if lo <= r["tick"] <= hi]
+        if not rows:
+            sys.exit(f"--ticks {a.ticks} selects no frames")
     client = anthropic.Anthropic(timeout=60.0, max_retries=0)
 
     with ThreadPoolExecutor(max_workers=a.workers) as pool:

@@ -565,3 +565,66 @@ def test_aim_realmodel_sweep():
     assert all(r["decision_tick"] >= 0 for r in rows)
     # r values quoted in the text and table.
     assert [round(omega * d / (w_hi - w_lo), 2) for d in (6, 7, 8, 9, 10, 11, 14)] == [0.51, 0.60, 0.68, 0.77, 0.85, 0.94, 1.19]
+
+
+def test_commit_first_passage_basics():
+    from eval.pit.analyze import commit_first_passage
+    # Certain FIRE from tick 3 on: a two-consecutive rule commits on tick 4.
+    dist, never = commit_first_passage([0, 0, 0, 1, 1, 1], k=2)
+    assert dist == {4: 1.0} and never == 0
+    # k = 1 commits on the first FIRE.
+    assert commit_first_passage([0, 0, 1, 1], k=1)[0] == {2: 1.0}
+    # An isolated FIRE never commits under k = 2.
+    dist, never = commit_first_passage([0, 1, 0, 0], k=2)
+    assert dist == {} and never == 1.0
+    # Probabilities: p = 1/2 on two frames -> 1/4 commit on the second.
+    dist, never = commit_first_passage([0.5, 0.5], k=2)
+    assert dist == {1: 0.25} and never == 0.75
+
+
+def test_battery_predicts_sweeps():
+    # Table "each sweep predicted from its judge's offline battery alone".
+    import importlib.util
+    path = os.path.join(DATA, "..", "realmodel", "predict_from_battery.py")
+    spec = importlib.util.spec_from_file_location("predict_from_battery", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    p = mod.predictions()
+    got = {name: (v["pred_mode"], v["obs_mode"], round(v["pred_early"]), v["obs_early"],
+                  round(v["pred_cleared"], 1), v["obs_cleared"]) for name, v in p.items()}
+    assert got == {
+        "Sonnet 4.6, pit, clear": (91, 91, 0, 9, 42.0, 41),
+        "Sonnet 4.6, pit, fog 1": (89, 90, 48, 35, 44.7, 41),
+        "Haiku 4.5, pit, clear": (93, 93, 0, 11, 30.0, 26),
+        "Sonnet 4.6, aim scene": (47, 49, 0, 0, 36.7, 37),
+    }
+    aim = p["Sonnet 4.6, aim scene"]
+    assert {t: round(m, 2) for t, m in aim["pred_dist"].items()} == {47: 0.44, 48: 0.22, 49: 0.33}
+    assert (round(aim["pred_mean"], 1), round(aim["obs_mean"], 1)) == (47.9, 48.0)
+    assert (round(aim["pred_by_delay"][7], 1), round(aim["pred_by_delay"][8], 1)) == (4.0, 2.7)
+    assert aim["obs_ticks"][45] + aim["obs_ticks"][46] == 10
+
+
+def test_aim_deliberation_stall():
+    # "The judge deliberates on the same kind of frame": per-call latency by
+    # tick band on the aim sweep.
+    import importlib.util
+    path = os.path.join(DATA, "..", "realmodel", "fig_aim_real.py")
+    spec = importlib.util.spec_from_file_location("fig_aim_real", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    rows = _rows(os.path.join("..", "realmodel", "sonnet_aim_sweep.jsonl"))
+    by = mod.call_latencies(rows)
+    assert sum(len(v) for v in by.values()) == 3516          # 3,528 judged frames less 12 retried calls
+    prof = mod.latency_profile(rows)
+    far, edge, after = prof[(0, 29)], prof[(43, 47)], prof[(48, 49)]
+    assert (round(far["median"], 1), round(far["over_10s"], 3)) == (3.7, 0.001)
+    assert (round(edge["median"], 1), round(edge["p90"], 1), round(edge["max"], 1)) == (11.7, 21.3, 27.9)
+    assert round(edge["over_10s"], 2) == 0.71
+    assert (round(edge["share_calls"], 3), round(edge["share_time"], 3)) == (0.096, 0.246)
+    assert round(after["median"], 1) == 4.8
+    # Both halves of the sweep (run a month apart) show it.
+    import statistics
+    for sel, want in ((lambda r: r["delay"] <= 7, 11.5), (lambda r: r["delay"] >= 8, 11.9)):
+        half = mod.call_latencies([r for r in rows if sel(r)])
+        assert round(statistics.median([x for t in range(43, 48) for x in half[t]]), 1) == want

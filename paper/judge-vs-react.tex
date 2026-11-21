@@ -46,7 +46,8 @@ far-field first-passage errors no delay can rescue, and it clears 26/72, as
 the same equation predicts from its commit distribution. On a second
 scene, a rendered aiming task, the Sonnet judge commits one to five ticks
 inside a twelve-tick window instead of at its edge, and its cliff moves to
-$\rstar = 0.65$, where its commit offset puts it; all 72 of those episodes
+$\rstar = 0.65$, where its commit offset puts it and where its offline
+frame battery had put it before the sweep was run; all 72 of those episodes
 obey the same rule. Removing the delay knob
 and sweeping the clock instead, so that the judge's own latency is the
 delay, the same judge clears 0/30 episodes until $r$ falls below $1/3$ (two
@@ -58,6 +59,8 @@ frames are misjudged instead (54\% false JUMP), so the judge commits early
 in 58/72 episodes and clears 8/72. In real time the budget is the longest
 latency on the approach, the longest one falls on the hardest frame, and
 effort trades that stall for a first-passage failure on the same frames.
+The stall recurs on the aiming scene, on the frames around the window's
+near edge (median 11.7\,s against 3.7\,s).
 
 The apparatus reduces an episode to one decision, labels it in- or
 out-of-window from the sim's own dynamics, and injects a control delay $D$ so
@@ -139,7 +142,9 @@ it:
     Sonnet~4.6 on a rendered aiming task, through the same kind of delay
     grid: every commit is inside the window, but one to five ticks into it,
     so the cliff sits at $\rstar = 0.65$ rather than near 1, as the
-    commit-offset law predicts tick for tick.
+    commit-offset law predicts tick for tick and as the judge's offline
+    battery predicted before the sweep (Table~\ref{tab:battery}). The
+    deliberation stall recurs on this scene's ambiguous frames.
   \item \textbf{The judge's own latency through the boundary
     (\S\ref{sec:clock}).} With no injected delay and the clock rate swept
     instead, the judge's real-time flip lands at $r = 1/3$, the bound the
@@ -588,6 +593,66 @@ the commit varies \emph{within} the window, so the pooled transition is
 graded over two delays where the pit's was a step; each episode is still
 deterministic given its commit.
 
+\paragraph{The cliff was called before the sweep, from the battery.} The
+delay grid was laid out around a predicted cliff ``near $D \approx 8$
+($r \approx 0.7$)'', read off the 68-frame battery and committed with the
+sweep driver when only 20 episodes existed, all at $D \le 5$. The
+prediction can be made exact. Under the two-consecutive rule, and assuming
+answers on different frames are independent, the battery's per-frame FIRE
+rates give a commit distribution (\code{analyze.commit\_first\_passage}):
+tick 47 with probability 0.44, 48 with 0.22, 49 with 0.33, mean 47.9 against
+the 48.0 observed. Through the landing rule that is 36.7 hits on this grid
+against 37 observed, with 4.0 and 2.7 of 6 at $D = 7$ and $8$ against 5 and
+2. What it misses is the spread: it gives no weight to commits on ticks 45
+and 46, where 10 of the 72 fell, because three samples saw no FIRE on tick
+45. Table~\ref{tab:battery} repeats the exercise for every injected-delay
+sweep in the paper. A three-sample battery (324 calls on the pit, 204 here)
+fixes the modal commit, exactly for both judges on the clear pit and within
+two ticks elsewhere, and the sweep total to within 1 to 4 episodes of 72.
+It does not see the early commits in clear weather, 0 predicted against 9
+and 11: those come from per-frame rates of a few percent, below what three
+samples resolve, and from errors that cluster on neighbouring frames, which
+independence rules out.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Each sweep predicted from its judge's offline battery alone (three
+samples per frame, two-consecutive commit rule, independent frames), against
+the 72-episode closed-loop sweep. Pit ticks 91 and 93 are $x = 8.94$ and
+$9.08$.}
+\label{tab:battery}
+\begin{tabular}{lrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{modal commit tick} & \multicolumn{2}{c}{early commits} & \multicolumn{2}{c}{cleared of 72} \\
+sweep & battery & sweep & battery & sweep & battery & sweep \\
+\midrule
+Sonnet 4.6, pit, clear (\S\ref{sec:real}) & 91 & 91 & 0 & 9 & 42.0 & 41 \\
+Sonnet 4.6, pit, fog 1 (\S\ref{sec:fog}) & 89 & 90 & 48 & 35 & 44.7 & 41 \\
+Haiku 4.5, pit, clear (\S\ref{sec:haiku}) & 93 & 93 & 0 & 11 & 30.0 & 26 \\
+Sonnet 4.6, aiming scene & 47 & 49 & 0 & 0 & 36.7 & 37 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The judge deliberates on the same kind of frame.} The sweep is
+blocking, so latency costs nothing in it, but every call's latency was
+logged, and it is not flat (Fig.~\ref{fig:aimreal}, right). On ticks 0--29
+the judge answers in a median 3.7\,s and 0.1\% of calls exceed 10\,s. On
+ticks 43--47, the two frames before the window and its first three, the
+median is 11.7\,s, the 90th percentile 21.3\,s and the maximum 27.9\,s,
+and 71\% of calls exceed 10\,s; on ticks 48--49, where the battery is
+unanimous, it is back to 4.8\,s. Those five frames are 9.6\% of the calls
+and 24.6\% of the thinking time, and they are the frames the battery is
+split on (tick 44: 2/3; 45: 0/3; 46 and 47: 2/3). The two halves of the
+sweep were run a month apart and agree (medians 11.5 and 11.9\,s on those
+ticks). This is the deliberation stall of \S\ref{sec:clock}, found here
+without a clock sweep and on a different scene with a different prompt: the
+judge is slowest where its answer is least certain, and on this scene three
+of those frames are inside the window. (Latencies are over 3{,}516 judged
+frames; 12 calls above the client's 60\,s timeout went through a retry and
+are excluded.)
+
 The judge did not get worse on this scene: every one of its 72 commits
 would have hit with no delay. It got later, by four ticks at the mode, and
 four ticks is a third of this window. A change of scene and prompt moved
@@ -601,9 +666,12 @@ no change to the model or the commit rule.
   vs.\ $r = \omega D / 2h$; all 72 commits are in-window, the logistic fit
   gives $\rstar = 0.65$, the dashed line is the cliff predicted from the
   modal commit offset, and the dotted line is the same judge's $\rstar$ on
-  the pit. Right: commit position in ticks past the window's near edge
+  the pit. Middle: commit position in ticks past the window's near edge
   against the window (shaded): the commit point spreads over five ticks
-  inside the window, with the mode 4.9 ticks in.}
+  inside the window, with the mode 4.9 ticks in. Right: each call's latency
+  against the tick of the frame it judged, with the per-tick median; the
+  judge takes three times as long on the frames around the window's near
+  edge as anywhere else.}
   \label{fig:aimreal}
 \end{figure}
 
@@ -930,8 +998,10 @@ cliff at $r = 1/3$ rather than $1$, and ``VLMs are too slow to play games''
 is partly a fact about the clock they are handed: slowing it $90\times$ turns
 the same judge from 0/6 to 6/6 with no change to the model. But the budget
 is not the model's median latency. It is the longest latency on the
-approach, and that falls on the frame the judge finds hardest, which is the
-one just before the window opens: the high-effort judge answers in 2.6\,s
+approach, and that falls on the frames the judge finds hardest, which on
+both scenes are the ones at the window's near edge
+(\S\ref{sec:aimreal}). On the pit it is the one just before the window
+opens: the high-effort judge answers in 2.6\,s
 everywhere else and deliberates for 10--32\,s there, walking into the pit
 while it thinks. Taking the deliberation away does not help, because the
 same frames are then misjudged instead (54\% false JUMP at low effort, 58/72

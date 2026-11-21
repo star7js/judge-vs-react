@@ -46,10 +46,14 @@ MODEL = "claude-sonnet-4-6"
 # that r (two decisions must land inside the window).
 CLOCKS = [1 / 60, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.5, 2.0, 4.0]
 SEEDS = [1, 2, 3, 4, 5, 6]
+# --task aim: the window is 11.76 ticks and the aim judge's median call is
+# ~4 s (11-16 s on the frames around the near edge), so the regime change is
+# at slower clocks than the pit's: two answers must land inside the window.
+AIM_CLOCKS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 6.0]
 
 
 def run_one(job):
-    clock_s, seed, backend, model, fixed_latency, effort, commit_k = job
+    clock_s, seed, backend, model, fixed_latency, effort, commit_k, task = job
     wid = os.getpid()
     os.environ["KEEN_AGENT_SOCK"] = f"/tmp/keen_clock_sock_{wid}"
     latency_log = f"/tmp/keen_clock_lat_{wid}.jsonl"
@@ -59,11 +63,15 @@ def run_one(job):
     extra = ["--clock-s", repr(clock_s), "--effort", effort, "--commit-k", str(commit_k)]
     if fixed_latency:
         extra += ["--latency", repr(fixed_latency)]
+    extra_cli = None
+    if task == "aim":
+        extra += ["--task", "aim"]
+        extra_cli = ["--task", "aim"]
     t0 = time.time()
     try:
         row = rv.run_vlm_episode(BINARY, cfg, backend=backend, model=model,
                                  latency_log=latency_log, frame_out=frame_out,
-                                 agent_extra=extra)
+                                 agent_extra=extra, extra_cli=extra_cli)
     except RuntimeError as exc:
         return {"clock_s": clock_s, "seed": seed, "error": str(exc)[:300]}
     entries = [json.loads(l) for l in open(latency_log)] if os.path.exists(latency_log) else []
@@ -75,7 +83,7 @@ def run_one(job):
     ns = [c["delay_ticks"] for c in calls]
     jumps = [c for c in calls if c["action"] == "jump"]
     row.update({
-        "clock_s": clock_s, "effort": effort, "commit_k": commit_k, "n_calls": len(calls),
+        "clock_s": clock_s, "effort": effort, "commit_k": commit_k, "task": task, "n_calls": len(calls),
         "n_retried_calls": sum(1 for c in calls if c.get("retries")),
         # frame the judge committed on (its takeoff is decision_x, n ticks later);
         # the first committed JUMP -- the loop keeps asking after it, so later
@@ -104,14 +112,17 @@ def main():
     ap.add_argument("--clocks", default=None, help="comma-separated clock periods (s) override")
     ap.add_argument("--seeds", default=None, help="comma-separated seeds override")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--task", default="pit", choices=["pit", "aim"],
+                    help="scene: the pit (default) or the rendered aim scene")
     a = ap.parse_args()
 
-    clocks = [float(x) for x in a.clocks.split(",")] if a.clocks else CLOCKS
+    clocks = [float(x) for x in a.clocks.split(",")] if a.clocks else (AIM_CLOCKS if a.task == "aim" else CLOCKS)
     seeds = [int(x) for x in a.seeds.split(",")] if a.seeds else SEEDS
     short = a.model.split("-")[1] if a.backend == "vision" else "rules"
     tag = ("" if a.effort == "high" else f"_{a.effort}") + ("" if a.commit_k == 2 else f"_k{a.commit_k}")
-    out_path = Path(a.out) if a.out else HERE / f"{short}_clock_sweep{tag}.jsonl"
-    grid = [(c, s, a.backend, a.model if a.backend == "vision" else None, a.latency, a.effort, a.commit_k)
+    scene = "_aim" if a.task == "aim" else ""
+    out_path = Path(a.out) if a.out else HERE / f"{short}{scene}_clock_sweep{tag}.jsonl"
+    grid = [(c, s, a.backend, a.model if a.backend == "vision" else None, a.latency, a.effort, a.commit_k, a.task)
             for c in clocks for s in seeds]
     done = set()
     if out_path.exists():

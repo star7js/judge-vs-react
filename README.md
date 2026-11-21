@@ -46,7 +46,15 @@ The judgment never changed; only the clock did.
   `r* = 0.65` instead of 1.05: 30/30 through `r = 0.51`, 5/6 and 2/6 at the
   next two delays, 0/30 from `r = 0.77`. Every episode obeys the same rule
   as the pit's (hit iff commit tick + delay ≤ 55). The cliff is set by where
-  the judge commits, not by how well it sees.
+  the judge commits, not by how well it sees. The deliberation stall is here
+  too: median 11.7 s per call on the five frames around the window's near
+  edge against 3.7 s far from it.
+- **The offline battery predicts the sweep:** from a three-sample frame
+  battery and the commit rule alone, the modal commit comes out exact for
+  both judges on the clear pit and within two ticks elsewhere, and the
+  72-episode total within 1 to 4 (42.0/41, 44.7/41, 30.0/26, 36.7/37
+  predicted/observed). It misses the rare early commits (0 predicted vs 9
+  and 11). `eval/pit/realmodel/predict_from_battery.py`.
 - **The judge's own latency through the boundary:** with no injected delay
   and the sim's clock rate swept instead, so that each decision's real
   latency is its own delay, the same judge clears 0/30 until `r < 1/3` (two
@@ -98,7 +106,7 @@ for f in fig_realmodel fig_clock fig_firstpassage fig_aim_real; do
   uv run --with matplotlib --with numpy --with scipy python eval/pit/realmodel/$f.py
 done
 
-# tests (7 shell + 48 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (7 shell + 51 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

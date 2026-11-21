@@ -25,15 +25,17 @@ EpisodeResult aim_run_oracle(AimConfig cfg, int delay, int repeat)
     return aim_run(cfg, delay, repeat, aim_oracle, NULL);
 }
 
-AimConfig aim_scene_config(AimConfig base, int target_x, float run_up)
+AimConfig aim_scene_config(AimConfig base, int target_x, int target_w, float run_up)
 {
-    // Player at (target_x + 0.5, AIM_PLAYER_Y); the tile's face is the
-    // segment y = 1, x in [target_x, target_x + 1]. Angles via atan2 so the
-    // window is exactly what the center ray sees.
-    float cx = (float)target_x + 0.5f, cy = AIM_PLAYER_Y;
+    // Player at (target_x + target_w/2, AIM_PLAYER_Y); the target's face is
+    // the segment y = 1, x in [target_x, target_x + target_w]. Angles via
+    // atan2 so the window is exactly what the center ray sees.
+    if (target_w < 1) target_w = 1;
+    float cx = (float)target_x + 0.5f * (float)target_w, cy = AIM_PLAYER_Y;
     float lo = atan2f(1.0f - cy, (float)target_x - cx);
-    float hi = atan2f(1.0f - cy, (float)target_x + 1.0f - cx);
+    float hi = atan2f(1.0f - cy, (float)target_x + (float)target_w - cx);
     AimConfig c = base;
+    c.width_id = target_w;
     c.theta_t = 0.5f * (lo + hi);
     c.half_width = 0.5f * (hi - lo);
     c.a0 = c.theta_t - run_up;

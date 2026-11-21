@@ -37,7 +37,7 @@ void map_load_test(Map *map)
     map->walls[map->exit_y][map->exit_x] = TILE_EXIT;
 }
 
-void map_load_aim(Map *map, int target_x)
+void map_load_aim(Map *map, int target_x, int target_w)
 {
     memset(map, 0, sizeof(*map));
     map->width = 24;
@@ -50,10 +50,12 @@ void map_load_aim(Map *map, int target_x)
         map->walls[y][0] = 1;
         map->walls[y][map->width - 1] = 1;
     }
+    if (target_w < 1) target_w = 1;
     if (target_x < 1) target_x = 1;
     if (target_x > map->width - 2) target_x = map->width - 2;
-    map->walls[0][target_x] = TILE_TARGET;
-    map->spawn_x = (float)target_x + 0.5f;
+    if (target_x + target_w > map->width - 1) target_w = map->width - 1 - target_x;
+    for (int i = 0; i < target_w; i++) map->walls[0][target_x + i] = TILE_TARGET;
+    map->spawn_x = (float)target_x + 0.5f * (float)target_w;
     map->spawn_y = AIM_PLAYER_Y;
     map->spawn_angle = -1.5707963f;   // facing the far wall (-y)
     map->exit_x = target_x;           // unused by the aim task; schema parity

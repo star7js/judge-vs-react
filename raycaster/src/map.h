@@ -51,12 +51,14 @@ void map_load_test(Map *map);
 // the far edge of the pit.
 void map_load_pit(Map *map, PitConfig cfg);
 
-// The aim scene: the same 24x11 room with no pit, one TILE_TARGET tile in the
-// far (y = 0) wall at column target_x, and the player standing in the middle
-// of the room directly below it, so the tile's face spans x in [target_x,
-// target_x+1] at y = 1, seen from (target_x + 0.5, AIM_PLAYER_Y).
+// The aim scene: the same 24x11 room with no pit, a run of `target_w`
+// TILE_TARGET tiles (1 by default) in the far (y = 0) wall starting at column
+// target_x, and the player standing directly below the run's center, so the
+// target's face spans x in [target_x, target_x + target_w] at y = 1, seen
+// from (target_x + target_w / 2, AIM_PLAYER_Y). A wider run is a wider
+// angular window at the same sweep speed.
 #define AIM_PLAYER_Y 9.5f
-void map_load_aim(Map *map, int target_x);
+void map_load_aim(Map *map, int target_x, int target_w);
 
 static inline int map_is_solid(const Map *map, int x, int y)
 {
