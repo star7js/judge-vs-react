@@ -18,6 +18,6 @@ int ray_agent_decide(int tick, float px, float py, int on_ground,
 // Realtime: fire state (non-blocking), poll for the latest action separately.
 void ray_agent_send(int tick, float px, float py, int on_ground,
                     float pit_dist, int won, int dead);
-int ray_agent_poll(void);   // 1=jump, 0=none, -1=nothing new / disconnected
+int ray_agent_poll(void);   // 1=jump (if any action since the last poll was a jump), 0=none, -1=nothing new / disconnected
 
 #endif

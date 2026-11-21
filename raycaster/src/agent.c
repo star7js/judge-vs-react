@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <errno.h>
 
 // Default socket path; override with KEEN_AGENT_SOCK so parallel episodes
 // (one game+agent pair each) don't collide on a single socket.
@@ -37,17 +38,28 @@ static void send_state(int tick, float px, float py, int og,
 
 bool ray_agent_init(bool realtime)
 {
-    unlink(sock_path());
-    sfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sfd < 0) return false;
-
     struct sockaddr_un a;
     memset(&a, 0, sizeof a);
     a.sun_family = AF_UNIX;
-    strncpy(a.sun_path, sock_path(), sizeof a.sun_path - 1);
+    // A path longer than sun_path would be silently truncated, so the game
+    // would listen somewhere the agent never looks. Refuse instead.
+    if (strlen(sock_path()) >= sizeof a.sun_path) {
+        fprintf(stderr, "[agent] socket path too long: %s\n", sock_path());
+        return false;
+    }
+    strcpy(a.sun_path, sock_path());
 
-    if (bind(sfd, (struct sockaddr *)&a, sizeof a) < 0) return false;
-    if (listen(sfd, 1) < 0) return false;
+    unlink(sock_path());
+    sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sfd < 0) return false;
+    rlen = 0;
+
+    if (bind(sfd, (struct sockaddr *)&a, sizeof a) < 0 || listen(sfd, 1) < 0) {
+        perror("[agent] bind/listen");
+        close(sfd);
+        sfd = -1;
+        return false;
+    }
     signal(SIGPIPE, SIG_IGN);
 
     printf("[agent] waiting for agent on %s (%s) ...\n",
@@ -55,7 +67,7 @@ bool ray_agent_init(bool realtime)
     fflush(stdout);
 
     cfd = accept(sfd, NULL, NULL);      // block until the agent connects
-    if (cfd < 0) return false;
+    if (cfd < 0) { ray_agent_shutdown(); return false; }
     if (realtime) fcntl(cfd, F_SETFL, O_NONBLOCK);
 
     printf("[agent] connected\n");
@@ -76,10 +88,18 @@ int ray_agent_decide(int tick, float px, float py, int og,
 {
     if (cfd < 0) return -1;
     send_state(tick, px, py, og, pit, won, dead);
+    // Read one newline-terminated reply. A stream socket may deliver it in
+    // pieces, so keep reading until the line is complete.
     char b[256];
-    ssize_t r = recv(cfd, b, sizeof b - 1, 0);
-    if (r <= 0) { close(cfd); cfd = -1; return -1; }
-    b[r] = '\0';
+    size_t n = 0;
+    while (n < sizeof b - 1) {
+        ssize_t r = recv(cfd, b + n, sizeof b - 1 - n, 0);
+        if (r < 0 && errno == EINTR) continue;
+        if (r <= 0) { close(cfd); cfd = -1; return -1; }
+        n += (size_t)r;
+        if (memchr(b, '\n', n)) break;
+    }
+    b[n] = '\0';
     return strstr(b, "jump") ? 1 : 0;
 }
 
@@ -102,13 +122,16 @@ int ray_agent_poll(void)
         else break;   // EAGAIN / no data
     }
 
-    // Return the most recent complete action (later actions supersede older).
+    // Fold every complete action received since the last poll. A jump is a
+    // one-shot command, so it is sticky: a later "none" in the same batch
+    // must not cancel it.
     int result = -1;
     char *nl;
     while (rlen > 0 && (nl = memchr(rbuf, '\n', rlen)) != NULL) {
         int consumed = (int)(nl - rbuf) + 1;
         *nl = '\0';
-        result = strstr(rbuf, "jump") ? 1 : 0;
+        if (strstr(rbuf, "jump")) result = 1;
+        else if (result < 0) result = 0;
         memmove(rbuf, rbuf + consumed, rlen - consumed);
         rlen -= consumed;
     }

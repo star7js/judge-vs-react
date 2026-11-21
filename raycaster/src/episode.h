@@ -50,6 +50,11 @@ void try_move(const Map *map, float *px, float *py, float dx, float dy);
 // their own pixel scale factor.
 float jump_step(float *jz, float *jvz, float gravity);
 
+// Ground truth for one position: does a grounded, delay-0 takeoff at x clear
+// the pit? Runs the same tick sequence episode_run() does. pit_window() scans
+// this, and every in_window label (episode and --shoot) is this call.
+int takeoff_clears(PitConfig cfg, JumpPhysics phys, float x);
+
 // Analytic takeoff window for a pit config under given jump physics.
 Window pit_window(PitConfig cfg, JumpPhysics phys);
 

@@ -7,9 +7,14 @@ project(keen-raycaster C)
 set(CMAKE_C_STANDARD 99)
 
 # Resolve SDL2 via sdl2-config (Homebrew ships it; no pkg-config needed).
-execute_process(COMMAND sdl2-config --cflags
+find_program(SDL2_CONFIG sdl2-config)
+if(NOT SDL2_CONFIG)
+  message(FATAL_ERROR "sdl2-config not found. Install SDL2 development files "
+                      "(macOS: brew install sdl2; Debian/Ubuntu: apt install libsdl2-dev).")
+endif()
+execute_process(COMMAND ${SDL2_CONFIG} --cflags
                 OUTPUT_VARIABLE SDL2_CFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND sdl2-config --libs
+execute_process(COMMAND ${SDL2_CONFIG} --libs
                 OUTPUT_VARIABLE SDL2_LIBS OUTPUT_STRIP_TRAILING_WHITESPACE)
 separate_arguments(SDL2_CFLAGS)
 separate_arguments(SDL2_LIBS)

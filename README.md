@@ -75,18 +75,23 @@ accessible writeup is [`paper/blog.md`](paper/blog.md).
 
 ## Reproduce
 
-The sim is self-contained C (SDL2 + libm); analysis is Python via
+The sim is self-contained C (SDL2 + libm; `brew install sdl2` or
+`apt install libsdl2-dev`); analysis is Python via
 [uv](https://docs.astral.sh/uv/).
 
 ```bash
 # build the deterministic sim
 cmake -B raycaster/build -S raycaster && cmake --build raycaster/build
 
-# regenerate every figure + fit from the committed data
+# regenerate the figures + fits from the committed data
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with matplotlib --with numpy --with scipy python -m eval.pit.analyze
+# ...and the real-model figures (fig_realmodel*, fig_clock, fig_firstpassage)
+for f in fig_realmodel fig_clock fig_firstpassage; do
+  uv run --with matplotlib --with numpy --with scipy python eval/pit/realmodel/$f.py
+done
 
-# tests (5 shell + 40 pytest, incl. a regression suite pinning every paper number to the data)
+# tests (6 shell + 45 pytest, incl. a regression suite pinning every paper number to the data)
 ( cd raycaster && for t in tests/*.sh; do bash "$t"; done )
 KEEN_BIN=raycaster/build/keen-raycaster \
   uv run --with pillow --with pytest --with numpy --with scipy --with matplotlib \

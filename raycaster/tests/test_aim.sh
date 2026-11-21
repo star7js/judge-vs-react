@@ -2,6 +2,7 @@
 # Sweeping-aim task (the generality test for the r~1 timing law). Verifies the
 # angular window, the delay-0 hit, and the overshoot transition at r ~ 1.
 set -euo pipefail
+cd "$(dirname "$0")/.."            # raycaster/
 BIN=./build/keen-raycaster
 aim(){ SDL_VIDEODRIVER=dummy $BIN --episode --task aim \
        --omega 0.01 --half-width 0.06 --theta 1.0 --a0 0.5 --delay "$1"; }

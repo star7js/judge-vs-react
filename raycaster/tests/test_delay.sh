@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$0")/.."            # raycaster/
 BIN=./build/keen-raycaster
 run(){ SDL_VIDEODRIVER=dummy $BIN --episode --policy oracle --pit-near 10 --pit-width 2 --seed 1 --delay "$1" --repeat "${2:-1}"; }
 run 0  | grep -q '"cleared":1'      # no delay -> clear
