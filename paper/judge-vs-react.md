@@ -492,7 +492,13 @@ and within two ticks elsewhere, and the sweep total to within 1 to 4 episodes
 of 72. It does not see the early commits in clear weather, 0 predicted against
 9 and 11: those come from per-frame rates of a few percent, below what three
 samples resolve, and from errors that cluster on neighbouring frames, which
-independence rules out.
+independence rules out. More samples recover the spread. A dense battery on
+this scene (30 samples on each of ticks 40–57, 540 calls) expects 3.6, 9.0,
+16.0, 21.7 and 21.8 of 72 commits on ticks 45–49 against 4, 6, 9, 20 and 33
+observed, and 37.9 hits against 37. The residual is one-sided (`χ² = 10.0`, 4
+d.f., `p = 0.04`): in closed loop the judge commits later than independent
+frames predict, 33 against 21.8 on the last tick, in both halves of the sweep
+(16 and 17 of 36). We do not know why.
 
 | sweep | modal commit tick (battery / sweep) | early commits (battery / sweep) | cleared of 72 (battery / sweep) |
 |---|---|---|---|

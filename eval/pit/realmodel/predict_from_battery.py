@@ -38,12 +38,28 @@ CASES = [
 ]
 
 
+# The aim scene also has a dense battery: 30 samples per frame on ticks
+# 40..57, the frames around the window where the 3-sample battery is split.
+AIM_DENSE = "battery_aim_high_t40-57_n30.json"
+AIM_DENSE_NAME = "Sonnet 4.6, aim scene, dense battery"
+
+
+def aim_dense_battery() -> list[dict]:
+    """The 68-frame aim battery with the dense battery's rates substituted on
+    the ticks it covers (the rest keep their 3-sample rates, all zero)."""
+    base = json.load(open(HERE / "battery_aim_high.json"))
+    dense = {b["tick"]: b for b in json.load(open(HERE / AIM_DENSE))}
+    return [dense.get(b["tick"], b) for b in base]
+
+
 def predictions() -> dict[str, dict]:
     out = {}
     for name, battery, sweep, hit, in_window in CASES:
         b = json.load(open(HERE / battery))
         rows = [json.loads(l) for l in open(HERE / sweep) if l.strip()]
         out[name] = battery_prediction(b, rows, hit, in_window)
+    rows = [json.loads(l) for l in open(HERE / "sonnet_aim_sweep.jsonl") if l.strip()]
+    out[AIM_DENSE_NAME] = battery_prediction(aim_dense_battery(), rows, AIM_HIT, AIM_IN)
     return out
 
 
@@ -51,8 +67,13 @@ def main() -> None:
     print(f"{'sweep':26s} {'modal commit tick':>18s} {'mean commit tick':>18s} {'early commits':>15s} {'cleared /72':>13s}")
     print(f"{'':26s} {'pred':>9s}{'obs':>9s} {'pred':>9s}{'obs':>9s} {'pred':>8s}{'obs':>7s} {'pred':>7s}{'obs':>6s}")
     for name, p in predictions().items():
-        print(f"{name:26s} {p['pred_mode']:9d}{p['obs_mode']:9d} {p['pred_mean']:9.1f}{p['obs_mean']:9.1f} "
+        print(f"{name:26.26s} {p['pred_mode']:9d}{p['obs_mode']:9d} {p['pred_mean']:9.1f}{p['obs_mean']:9.1f} "
               f"{p['pred_early']:8.1f}{p['obs_early']:7d} {p['pred_cleared']:7.1f}{p['obs_cleared']:6d}")
+        if name == AIM_DENSE_NAME:
+            n = sum(p["obs_ticks"].values())
+            print("    commit tick, expected/observed of 72: " + "  ".join(
+                f"{t}: {n * p['pred_dist'].get(t, 0):.1f}/{p['obs_ticks'].get(t, 0)}"
+                for t in sorted(set(p["pred_dist"]) | set(p["obs_ticks"])) if n * p["pred_dist"].get(t, 0) >= 0.05 or p["obs_ticks"].get(t, 0)))
         print("    by delay (pred/obs): " + "  ".join(
             f"D={d}: {p['pred_by_delay'][d]:.1f}/{p['obs_by_delay'][d]}" for d in p["pred_by_delay"]))
 

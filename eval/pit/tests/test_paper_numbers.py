@@ -597,7 +597,16 @@ def test_battery_predicts_sweeps():
         "Sonnet 4.6, pit, fog 1": (89, 90, 48, 35, 44.7, 41),
         "Haiku 4.5, pit, clear": (93, 93, 0, 11, 30.0, 26),
         "Sonnet 4.6, aim scene": (47, 49, 0, 0, 36.7, 37),
+        "Sonnet 4.6, aim scene, dense battery": (49, 49, 0, 0, 37.9, 37),
     }
+    # The dense battery (30 samples on ticks 40-57) puts weight on all five
+    # commit ticks the sweep used; expected counts of 72 against observed.
+    dense = p["Sonnet 4.6, aim scene, dense battery"]
+    assert {t: round(72 * m, 1) for t, m in dense["pred_dist"].items() if 72 * m >= 0.05} == \
+        {45: 3.6, 46: 9.0, 47: 16.0, 48: 21.7, 49: 21.8}
+    assert dense["obs_ticks"] == {45: 4, 46: 6, 47: 9, 48: 20, 49: 33}
+    assert (round(dense["pred_mean"], 1), round(dense["obs_mean"], 1)) == (47.7, 48.0)
+    assert [round(dense["pred_by_delay"][d], 1) for d in (7, 8, 9, 10)] == [4.2, 2.4, 1.0, 0.3]
     aim = p["Sonnet 4.6, aim scene"]
     assert {t: round(m, 2) for t, m in aim["pred_dist"].items()} == {47: 0.44, 48: 0.22, 49: 0.33}
     assert (round(aim["pred_mean"], 1), round(aim["obs_mean"], 1)) == (47.9, 48.0)
