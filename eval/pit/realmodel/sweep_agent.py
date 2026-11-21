@@ -355,6 +355,16 @@ def main() -> None:
             print("[pit-agent] game closed", flush=True)
             return
 
+        if st.get("won") or st.get("dead"):
+            # Terminal notification: the episode is over. Acknowledge it (the
+            # game blocks on a reply) without asking the judge. The committed
+            # boundary sweeps predate this and carry one extra call per
+            # episode in n_calls / L_mean_s (see README.md).
+            sock.sendall((json.dumps({"action": "none", "tick": st["tick"]}) + "\n").encode())
+            print(f"[pit-agent] {'WON — cleared the pit' if st.get('won') else 'fell in the pit'} "
+                  f"(jumps={jumps})", flush=True)
+            return
+
         if a.latency > 0 and a.clock_s == 0:
             time.sleep(a.latency)
 
@@ -369,10 +379,6 @@ def main() -> None:
                       f"on_ground={st['on_ground']} -> JUMP", flush=True)
         sock.sendall((json.dumps({"action": "jump" if jump else "none",
                                   "tick": st["tick"]}) + "\n").encode())
-
-        if st.get("won"):
-            print(f"[pit-agent] WON — cleared the pit (jumps={jumps})", flush=True)
-            return
 
 
 if __name__ == "__main__":
