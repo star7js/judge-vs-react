@@ -260,8 +260,8 @@ from wall-clock, the model's (slow, variable) API latency is free, and `r` is
 engineered exactly as in §4.1: Sonnet 4.6 judges *every grounded frame* of a
 closed-loop blocking episode (pit_width 2, `v = 0.07`, fog 0, seeds 1–6), its
 committed jump is applied `D` ticks later, and sweeping `D ∈ {0..31}` sweeps
-`r = v·D/W` from 0 to 2, densely around `r = 1` (72 episodes; 6,612 vision
-calls).
+`r = v·D/W` from 0 to 2, densely around `r = 1` (72 episodes; 6,540 judged
+frames, plus one redundant call per episode after it ended: 6,612 vision calls).
 
 **Judge protocol.** The episode prompt used for the latency battery (§4.11)
 turns out never to elicit JUMP near the window from *any* hosted model: it
@@ -356,7 +356,8 @@ something per approach: the judge still fires on every in-window frame, but it
 also fires early more often — isolated JUMPs at `x = 8.38`, 8.73 and 8.80, a
 far-field false JUMP at `x = 2.85` (1/3), and two in-window frames that were
 not unanimous. We therefore repeated the §4.4 sweep at fog 1: same judge, same
-prompt, same 12 delays × 6 seeds (72 episodes; 6,669 vision calls), with
+prompt, same 12 delays × 6 seeds (72 episodes; 6,597 judged frames, 6,669
+vision calls), with
 nothing changed but the renderer's fog.
 
 **The commit point spreads.** In clear weather 63/72 commits sat at `x = 8.94`
@@ -417,7 +418,7 @@ timing law.
 The sweeps above are one judge. To see which of their results belong to the
 judge and which to the apparatus, we ran the §4.4 grid again with Haiku 4.5 as
 the judge: same prompt, same two-consecutive commit rule, same 12 delays × 6
-seeds, pit width 2, fog 0 (72 episodes, 6,540 calls). Haiku predates adaptive
+seeds, pit width 2, fog 0 (72 episodes; 6,468 judged frames, 6,540 calls). Haiku predates adaptive
 thinking, so it runs with a 2k-token thinking budget; its per-episode mean
 latency is 2.6 s. On the 108-frame battery it is a worse judge than Sonnet in
 the ways §4.10 predicts: it fires on every in-window frame except the first
